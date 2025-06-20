@@ -39,7 +39,7 @@
             justify-content: center;
         }
 
-        .card {
+        .tarot-card { /* Changed from .card to .tarot-card to match JS */
             width: 200px;
             height: 350px;
             position: relative;
@@ -49,7 +49,7 @@
             margin: 0 10px;
         }
 
-        .card.flipped {
+        .tarot-card.flipped { /* Changed from .card to .tarot-card to match JS */
             transform: rotateY(180deg);
         }
 
@@ -84,6 +84,8 @@
             font-size: 4rem;
             color: #ffd700;
             opacity: 0.8;
+            position: relative; /* Make it a positioning context for reveal-text */
+            top: -20px; /* Adjust emoji position slightly up */
         }
 
         .card-symbol {
@@ -105,7 +107,11 @@
             color: #4a4a4a;
         }
 
-        .draw-button {
+        .button-group { /* Added for button grouping */
+            margin-top: 20px;
+        }
+
+        .draw-button { /* Changed to match previous HTML structure */
             background: linear-gradient(45deg, #ffd700, #ffed4e);
             color: #2c1810;
             border: none;
@@ -116,7 +122,7 @@
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 5px 15px rgba(255,215,0,0.3);
-            margin: 20px;
+            margin: 20px 10px; /* Adjusted margin for spacing */
             font-weight: bold;
         }
 
@@ -131,7 +137,7 @@
             transform: none;
         }
 
-        .interpretation {
+        #interpretation { /* Changed from .interpretation to #interpretation to match JS */
             margin-top: 30px;
             padding: 25px;
             background: rgba(255,255,255,0.1);
@@ -139,17 +145,32 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255,215,0,0.3);
             opacity: 0;
-            transition: opacity 0.5s;
-            /* CHANGE: Make width consistent */
+            transition: opacity 0.5s, max-height 0.5s ease; /* Added max-height for smooth hide/show */
+            max-height: 0; /* Initially hidden */
+            overflow: hidden; /* Hide overflow when collapsed */
             width: 100%;
             box-sizing: border-box;
+            text-align: left; /* Align text left */
         }
 
-        .interpretation.show {
+        #interpretation.show {
             opacity: 1;
+            max-height: 300px; /* Sufficient height to show content */
         }
 
-        .deck-counter {
+        #interpretation h2 { /* Changed from h3 to h2 to match JS, also added styles */
+            color: #ffd700;
+            margin-top: 0;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+        }
+
+        #interpretationText { /* Added for specific paragraph styling */
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        #deckCounter { /* Changed from .deck-counter to #deckCounter to match JS */
             font-size: 1.1rem;
             color: #ffd700;
             margin: 20px 0;
@@ -157,26 +178,25 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
 
-        .drawn-cards {
+        #drawnCardsSection { /* Changed from .drawn-cards to #drawnCardsSection to match JS */
             margin-top: 40px;
             padding: 25px;
             background: rgba(255,255,255,0.05);
             border-radius: 15px;
             backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,215,0,0.2);
-            /* CHANGE: Make width consistent */
+            border: 1px solid rgba(255,255,255,0.2);
             width: 100%;
             box-sizing: border-box;
         }
 
-        .drawn-cards h3 {
+        #drawnCardsSection h2 { /* Changed from h3 to h2 to match JS */
             color: #ffd700;
             margin-bottom: 15px;
             font-size: 1.3rem;
             text-align: center;
         }
 
-        .drawn-list {
+        #drawnList { /* Changed from .drawn-list to #drawnList to match JS */
             max-height: 300px;
             overflow-y: auto;
             padding: 10px;
@@ -214,7 +234,7 @@
             opacity: 0.8;
         }
 
-        .stars {
+        .stars-background { /* Changed from .stars to .stars-background to match JS */
             position: fixed;
             top: 0;
             left: 0;
@@ -239,21 +259,34 @@
         .reveal-text {
             color: #ffd700;
             font-size: 1rem;
-            margin-top: 10px;
+            position: absolute;
+            /* Adjusted top and transform to move it below the emoji */
+            top: 65%; /* Move it further down */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 1.5s infinite;
+            pointer-events: none;
         }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+        }
+
     </style>
 </head>
 <body>
-    <div class="stars" id="stars"></div>
+    <div class="stars-background" id="stars"></div>
     
     <div class="container">
         <h1>✨ Tarot Card Reading ✨</h1>
         
         <div class="card-container">
-            <div class="card" id="tarotCard">
+            <div class="tarot-card" id="tarotCard">
                 <div class="card-face card-back">
                     <div class="back-pattern">🌙</div>
-                </div>
+                    </div>
                 <div class="card-face card-front" id="cardFront">
                     </div>
             </div>
@@ -261,17 +294,19 @@
         
         <div class="deck-counter" id="deckCounter">Cards Remaining: 78/78</div>
         
-        <button class="draw-button" onclick="drawCard()" id="drawButton">Draw Your Card</button>
-        <button class="draw-button" onclick="shuffleDeck()" style="background: linear-gradient(45deg, #8a2be2, #9932cc); margin-left: 10px;">Shuffle Deck</button>
+        <div class="button-group">
+            <button class="draw-button" id="drawButton">Draw Your Card</button>
+            <button class="draw-button" id="shuffleButton" style="background: linear-gradient(45deg, #8a2be2, #9932cc); margin-left: 10px;">Shuffle Deck</button>
+        </div>
         
-        <div class="interpretation" id="interpretation">
-            <h3>Card Interpretation</h3>
+        <div id="interpretation">
+            <h2>Card Interpretation</h2>
             <p id="interpretationText"></p>
         </div>
         
-        <div class="drawn-cards" id="drawnCards">
-            <h3>Cards Already Drawn</h3>
-            <div class="drawn-list" id="drawnList">
+        <div id="drawnCardsSection">
+            <h2>Cards Already Drawn</h2>
+            <div id="drawnList">
                 <p style="opacity: 0.7; font-style: italic;">No cards drawn yet</p>
             </div>
         </div>
@@ -764,6 +799,14 @@
         let drawnCards = []; // Track drawn cards
         let isDrawing = false; // Prevents multiple draws at once
 
+        // Get button elements
+        const drawButton = document.getElementById('drawButton');
+        const shuffleButton = document.getElementById('shuffleButton');
+
+        // Add event listeners
+        drawButton.addEventListener('click', drawCard);
+        shuffleButton.addEventListener('click', shuffleDeck);
+
         // Create twinkling stars
         function createStars() {
             const starsContainer = document.getElementById('stars');
@@ -865,10 +908,8 @@
             setTimeout(() => {
                 // Select random card from available cards
                 const randomIndex = Math.floor(Math.random() * availableCards.length);
-                currentCard = availableCards.splice(randomIndex, 1)[0]; // Pick and remove card
-                
-                updateDeckCounter();
-                
+                currentCard = availableCards[randomIndex]; // Get the card without removing it yet
+
                 // Populate card front with new card's details
                 cardFront.innerHTML = `
                     <div class="card-symbol">${currentCard.symbol}</div>
@@ -882,7 +923,6 @@
                 revealTextDiv.textContent = 'Click to reveal';
                 cardBack.appendChild(revealTextDiv);
 
-
                 // Set the click handler to flip the card and show interpretation
                 tarotCardElement.onclick = function() {
                     if (this.classList.contains('flipped')) return; // Do nothing if already flipped
@@ -895,11 +935,18 @@
                         cardBack.removeChild(currentRevealText);
                     }
 
-                    // SPOILER FIX: Add to drawn list ONLY when revealed
-                    if (!drawnCards.includes(currentCard)) {
+                    // Add to drawn list ONLY when revealed and remove from available cards
+                    // This ensures the card is added to drawnCards as soon as it's revealed
+                    // and not before, and also handles the scenario where another card is drawn
+                    // before the previous one is flipped.
+                    const indexInAvailable = availableCards.indexOf(currentCard);
+                    if (indexInAvailable > -1) { // Check if it's still in availableCards
+                        availableCards.splice(indexInAvailable, 1); // Remove the revealed card
                         drawnCards.unshift(currentCard); // Add to beginning of array
+                        updateDeckCounter(); // Update counter after removing
                         updateDrawnCardsList();
                     }
+
 
                     // Show interpretation after a slight delay to allow flip animation
                     setTimeout(() => {
