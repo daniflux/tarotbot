@@ -235,6 +235,12 @@
             0%, 100% { opacity: 0.3; }
             50% { opacity: 0.8; }
         }
+
+        .reveal-text {
+            color: #ffd700;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -247,7 +253,6 @@
             <div class="card" id="tarotCard">
                 <div class="card-face card-back">
                     <div class="back-pattern">🌙</div>
-                    <div style="color: #ffd700; font-size: 1rem; margin-top: 10px;">Click to reveal</div>
                 </div>
                 <div class="card-face card-front" id="cardFront">
                     </div>
@@ -807,6 +812,12 @@
             updateDrawnCardsList();
             
             const tarotCardElement = document.getElementById('tarotCard');
+            const cardBack = tarotCardElement.querySelector('.card-back');
+            const revealTextElement = cardBack.querySelector('.reveal-text');
+            if (revealTextElement) {
+                cardBack.removeChild(revealTextElement);
+            }
+
             tarotCardElement.classList.remove('flipped');
             tarotCardElement.onclick = null; // Remove click handler until a card is drawn
             document.getElementById('interpretation').classList.remove('show');
@@ -827,9 +838,16 @@
 
             const tarotCardElement = document.getElementById('tarotCard');
             const cardFront = document.getElementById('cardFront');
+            const cardBack = tarotCardElement.querySelector('.card-back'); // Get the card back element
             const interpretationElement = document.getElementById('interpretation');
             const interpretationTextElement = document.getElementById('interpretationText');
             const drawButton = document.getElementById('drawButton');
+
+            // Remove existing reveal text if any
+            const existingRevealText = cardBack.querySelector('.reveal-text');
+            if (existingRevealText) {
+                cardBack.removeChild(existingRevealText);
+            }
 
             // Hide interpretation and ensure card is back-facing for new draw
             interpretationElement.classList.remove('show');
@@ -858,12 +876,25 @@
                     <div class="card-meaning">${currentCard.meaning}</div>
                 `;
 
+                // Add 'Click to reveal' text dynamically
+                const revealTextDiv = document.createElement('div');
+                revealTextDiv.className = 'reveal-text';
+                revealTextDiv.textContent = 'Click to reveal';
+                cardBack.appendChild(revealTextDiv);
+
+
                 // Set the click handler to flip the card and show interpretation
                 tarotCardElement.onclick = function() {
                     if (this.classList.contains('flipped')) return; // Do nothing if already flipped
 
                     this.classList.add('flipped');
                     
+                    // Remove 'Click to reveal' text when card is flipped
+                    const currentRevealText = cardBack.querySelector('.reveal-text');
+                    if (currentRevealText) {
+                        cardBack.removeChild(currentRevealText);
+                    }
+
                     // SPOILER FIX: Add to drawn list ONLY when revealed
                     if (!drawnCards.includes(currentCard)) {
                         drawnCards.unshift(currentCard); // Add to beginning of array
