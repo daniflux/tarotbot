@@ -10,6 +10,28 @@ let currentCard = null;
 let isDrawing = false;
 let currentDeck = 'emoji';
 
+// --- LocalStorage helpers for deck state ---
+function saveStateToLocalStorage() {
+    const state = {
+        availableCardNames: availableCards.map(c => c.name),
+        drawnCardNames: drawnCards.map(c => c.name),
+        currentCardName: currentCard ? currentCard.name : null
+    };
+    localStorage.setItem("tarotState_" + currentDeck, JSON.stringify(state));
+}
+
+function loadStateFromLocalStorage() {
+    const saved = localStorage.getItem("tarotState_" + currentDeck);
+    if (!saved) return;
+    const state = JSON.parse(saved);
+    availableCards = tarotCards.filter(c => state.availableCardNames.includes(c.name));
+    drawnCards = state.drawnCardNames.map(name => tarotCards.find(c => c.name === name)).filter(Boolean);
+    currentCard = tarotCards.find(c => c.name === state.currentCardName);
+    if (currentCard) displayCard(currentCard);
+    updateDeckCounter();
+    updateDrawnCardsList();
+}
+
 function createStars() {
     const starsContainer = document.getElementById('stars');
     if (!starsContainer) return;
@@ -71,6 +93,7 @@ function shuffleDeck() {
     document.getElementById("interpretationText").textContent = "";
     drawButton.textContent = "Draw Your Card";
     drawButton.disabled = false;
+    saveStateToLocalStorage();
 }
 
 function drawCard() {
@@ -95,7 +118,9 @@ function drawCard() {
         tarotCardElement.onclick = function () {
             if (this.classList.contains("flipped")) return;
             this.classList.add("flipped");
-            availableCards.splice(randomIndex, 1);
+            // Remove from available, add to drawn, update state
+            const idx = availableCards.findIndex(c => c.name === currentCard.name);
+            if (idx > -1) availableCards.splice(idx, 1);
             drawnCards.unshift(currentCard);
             updateDeckCounter();
             updateDrawnCardsList();
@@ -108,6 +133,7 @@ function drawCard() {
         drawButton.textContent = availableCards.length > 0 ? "Draw Next Card" : "Deck Empty";
         drawButton.disabled = availableCards.length === 0;
         isDrawing = false;
+        saveStateToLocalStorage();
     }, wasFlipped ? 800 : 0);
 }
 
@@ -162,8 +188,12 @@ function loadDeck(deckName) {
             return;
         }
         tarotCards = window.deckData.cards;
-        shuffleDeck();
-        loadStateFromLocalStorage();
+        // Try to load state for this deck, or shuffle if none
+        if (localStorage.getItem('tarotState_' + currentDeck)) {
+            loadStateFromLocalStorage();
+        } else {
+            shuffleDeck();
+        }
         setLoadingState(false);
     };
     script.onerror = function() {
@@ -175,7 +205,11 @@ function loadDeck(deckName) {
 
 drawButton.addEventListener("click", drawCard);
 shuffleButton.addEventListener("click", shuffleDeck);
-deckSelector.addEventListener("change", function(e) { loadDeck(e.target.value); });
+deckSelector.addEventListener("change", function(e) {
+    // Save state of current deck before switching
+    saveStateToLocalStorage();
+    loadDeck(e.target.value);
+});
 
 createStars();
 setLoadingState(true);
