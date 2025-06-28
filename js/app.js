@@ -1,4 +1,3 @@
-
 const drawButton = document.getElementById("drawButton");
 const shuffleButton = document.getElementById("shuffleButton");
 const deckSelector = document.getElementById("deckSelector");
@@ -51,9 +50,11 @@ function updateDrawnCardsList() {
 
 function displayCard(card) {
     const cardFront = document.getElementById("cardFront");
-    cardFront.innerHTML = card.image
-        ? \`<img src="\${card.image}" alt="\${card.name}" style="width: 100%; border-radius: 12px;"><div class="card-name">\${card.name}</div>\`
-        : \`<div class="card-symbol">\${card.symbol}</div><div class="card-name">\${card.name}</div><div class="card-meaning">\${card.meaning}</div>\`;
+    if (card.image) {
+        cardFront.innerHTML = '<img src="' + card.image + '" alt="' + card.name + '" style="width: 100%; border-radius: 12px;"><div class="card-name">' + card.name + '</div>';
+    } else {
+        cardFront.innerHTML = '<div class="card-symbol">' + (card.symbol || '') + '</div><div class="card-name">' + card.name + '</div><div class="card-meaning">' + (card.meaning || '') + '</div>';
+    }
 }
 
 function shuffleDeck() {
@@ -131,24 +132,51 @@ function loadStateFromLocalStorage() {
     updateDrawnCardsList();
 }
 
+function setLoadingState(isLoading) {
+    drawButton.disabled = isLoading;
+    shuffleButton.disabled = isLoading;
+    if (isLoading) {
+        document.getElementById("deckCounter").textContent = "Loading deck...";
+        document.getElementById("drawnList").innerHTML = '<p style="opacity: 0.7; font-style: italic;">No cards drawn yet</p>';
+        document.getElementById("cardFront").innerHTML = "";
+        document.getElementById("interpretation").classList.remove("show");
+        document.getElementById("interpretationText").textContent = "";
+    }
+}
+
 function loadDeck(deckName) {
     currentDeck = deckName;
-    themeLink.href = \`decks/\${deckName}/style.css\`;
-    document.querySelectorAll("script[data-deck]").forEach(s => s.remove());
-    const script = document.createElement("script");
-    script.src = \`decks/\${deckName}/deck.js\`;
+    themeLink.href = 'decks/' + deckName + '/style.css';
+    setLoadingState(true);
+    // Remove any previous deckData and deck script
+    try { delete window.deckData; } catch (e) { window.deckData = undefined; }
+    var oldScripts = document.querySelectorAll('script[data-deck]');
+    oldScripts.forEach(function(s) { s.remove(); });
+    var script = document.createElement('script');
+    script.src = 'decks/' + deckName + '/deck.js';
     script.dataset.deck = deckName;
-    script.onload = () => {
+    script.onload = function() {
+        if (!window.deckData || !window.deckData.cards) {
+            alert('Failed to load deck data.');
+            setLoadingState(true);
+            return;
+        }
         tarotCards = window.deckData.cards;
         shuffleDeck();
         loadStateFromLocalStorage();
+        setLoadingState(false);
+    };
+    script.onerror = function() {
+        alert('Failed to load deck script. Please try again or check your files.');
+        setLoadingState(true);
     };
     document.body.appendChild(script);
 }
 
 drawButton.addEventListener("click", drawCard);
 shuffleButton.addEventListener("click", shuffleDeck);
-deckSelector.addEventListener("change", e => loadDeck(e.target.value));
+deckSelector.addEventListener("change", function(e) { loadDeck(e.target.value); });
 
 createStars();
+setLoadingState(true);
 loadDeck("emoji");
