@@ -811,7 +811,8 @@
                 const state = JSON.parse(savedState);
                 // Rebuild arrays from tarotCards master list
                 availableCards = tarotCards.filter(card => state.availableCardNames.includes(card.name));
-                drawnCards = tarotCards.filter(card => state.drawnCardNames.includes(card.name));
+                // Restore drawnCards in the correct order (most recent first)
+                drawnCards = state.drawnCardNames.map(name => tarotCards.find(card => card.name === name)).filter(Boolean);
                 currentCard = tarotCards.find(card => card.name === state.currentCardName) || null;
 
                 // Update UI based on loaded state
@@ -872,8 +873,8 @@
                 return;
             }
 
-            // Show most recent card at the top
-            drawnList.innerHTML = [...drawnCards].reverse().map(card => `
+            // Show most recent card at the top (drawnCards[0] is most recent)
+            drawnList.innerHTML = drawnCards.map(card => `
                 <div class="drawn-card-item">
                     <div class="drawn-card-symbol">${card.symbol}</div>
                     <div class="drawn-card-info">
