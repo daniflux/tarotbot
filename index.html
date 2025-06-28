@@ -794,6 +794,45 @@
         let drawnCards = []; // Track drawn cards
         let isDrawing = false; // Prevents multiple draws at once
 
+        // Functions for persisting state
+        function saveStateToLocalStorage() {
+            const state = {
+                availableCards: availableCards,
+                drawnCards: drawnCards,
+                currentCard: currentCard
+            };
+            localStorage.setItem('tarotState', JSON.stringify(state));
+        }
+
+        function loadStateFromLocalStorage() {
+            const savedState = localStorage.getItem('tarotState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                availableCards = state.availableCards;
+                drawnCards = state.drawnCards;
+                currentCard = state.currentCard;
+
+                // Update UI based on loaded state
+                updateDeckCounter();
+                updateDrawnCardsList();
+
+                // If there was a current card, restore its display
+                if (currentCard) {
+                    const cardFront = document.getElementById('cardFront');
+                    cardFront.innerHTML = `
+                        <div class="card-symbol">${currentCard.symbol}</div>
+                        <div class="card-name">${currentCard.name}</div>
+                        <div class="card-meaning">${currentCard.meaning}</div>
+                    `;
+                }
+
+                // Update draw button text
+                const drawButton = document.getElementById('drawButton');
+                drawButton.textContent = availableCards.length > 0 ? 'Draw Next Card' : 'Deck Empty';
+                drawButton.disabled = availableCards.length === 0;
+            }
+        }
+
         // Get button elements
         const drawButton = document.getElementById('drawButton');
         const shuffleButton = document.getElementById('shuffleButton');
@@ -847,6 +886,10 @@
             availableCards = [...tarotCards];
             drawnCards = [];
             currentCard = null;
+
+            // Clear saved state when shuffling
+            localStorage.removeItem('tarotState');
+            
             updateDeckCounter();
             updateDrawnCardsList();
             
@@ -940,6 +983,9 @@
                         drawnCards.unshift(currentCard); // Add to beginning of array
                         updateDeckCounter(); // Update counter after removing
                         updateDrawnCardsList();
+                        
+                        // Save state after card is revealed and drawn list is updated
+                        saveStateToLocalStorage();
                     }
 
 
@@ -962,6 +1008,7 @@
 
         // Initialize
         createStars();
+        loadStateFromLocalStorage(); // Load saved state if it exists
         updateDeckCounter();
     </script>
 </body>
