@@ -872,7 +872,8 @@
                 return;
             }
 
-            drawnList.innerHTML = drawnCards.map(card => `
+            // Show most recent card at the top
+            drawnList.innerHTML = [...drawnCards].reverse().map(card => `
                 <div class="drawn-card-item">
                     <div class="drawn-card-symbol">${card.symbol}</div>
                     <div class="drawn-card-info">
