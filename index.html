@@ -281,29 +281,23 @@
     
     <div class="container">
         <h1>✨ Tarot Card Reading ✨</h1>
-        
         <div class="card-container">
             <div class="tarot-card" id="tarotCard">
                 <div class="card-face card-back">
                     <div class="back-pattern">🌙</div>
-                    </div>
-                <div class="card-face card-front" id="cardFront">
-                    </div>
+                </div>
+                <div class="card-face card-front" id="cardFront"></div>
             </div>
         </div>
-        
         <div class="deck-counter" id="deckCounter">Cards Remaining: 78/78</div>
-        
         <div class="button-group">
             <button class="draw-button" id="drawButton">Draw Your Card</button>
             <button class="draw-button" id="shuffleButton" style="background: linear-gradient(45deg, #8a2be2, #9932cc); margin-left: 10px;">Shuffle Deck</button>
         </div>
-        
         <div id="interpretation">
             <h2>Card Interpretation</h2>
             <p id="interpretationText"></p>
         </div>
-        
         <div id="drawnCardsSection">
             <h2>Cards Already Drawn</h2>
             <div id="drawnList">
@@ -531,7 +525,7 @@
             {
                 name: "King of Wands",
                 symbol: "👑",
-                meaning: "Leadership, vision, honour, determination",
+                meaning: "Leadership, vision, honor, determination",
                 interpretation: "Step into a leadership role with confidence and vision. Your natural ability to inspire others will help you achieve your goals. Lead by example."
             },
 
@@ -717,7 +711,7 @@
             {
                 name: "Two of Pentacles",
                 symbol: "⚖️",
-                meaning: "Multiple priorities, time management, prioritisation",
+                meaning: "Multiple priorities, time management, prioritization",
                 interpretation: "You're juggling multiple responsibilities and priorities. Find balance through careful time management and adaptability to changing circumstances."
             },
             {
@@ -848,6 +842,7 @@
         }
 
         function shuffleDeck() {
+            if (isDrawing) return;
             availableCards = [...tarotCards];
             drawnCards = [];
             currentCard = null;
@@ -884,7 +879,6 @@
             const cardBack = tarotCardElement.querySelector('.card-back'); // Get the card back element
             const interpretationElement = document.getElementById('interpretation');
             const interpretationTextElement = document.getElementById('interpretationText');
-            const drawButton = document.getElementById('drawButton');
 
             // Remove existing reveal text if any
             const existingRevealText = cardBack.querySelector('.reveal-text');
