@@ -796,10 +796,11 @@
 
         // Functions for persisting state
         function saveStateToLocalStorage() {
+            // Save only card names for available and drawn cards, and current card name
             const state = {
-                availableCards: availableCards,
-                drawnCards: drawnCards,
-                currentCard: currentCard
+                availableCardNames: availableCards.map(card => card.name),
+                drawnCardNames: drawnCards.map(card => card.name),
+                currentCardName: currentCard ? currentCard.name : null
             };
             localStorage.setItem('tarotState', JSON.stringify(state));
         }
@@ -808,9 +809,10 @@
             const savedState = localStorage.getItem('tarotState');
             if (savedState) {
                 const state = JSON.parse(savedState);
-                availableCards = state.availableCards;
-                drawnCards = state.drawnCards;
-                currentCard = state.currentCard;
+                // Rebuild arrays from tarotCards master list
+                availableCards = tarotCards.filter(card => state.availableCardNames.includes(card.name));
+                drawnCards = tarotCards.filter(card => state.drawnCardNames.includes(card.name));
+                currentCard = tarotCards.find(card => card.name === state.currentCardName) || null;
 
                 // Update UI based on loaded state
                 updateDeckCounter();
