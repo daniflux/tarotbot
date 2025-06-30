@@ -137,25 +137,39 @@ function drawCard() {
     }, wasFlipped ? 800 : 0);
 }
 
-function saveStateToLocalStorage() {
-    const state = {
-        availableCardNames: availableCards.map(c => c.name),
-        drawnCardNames: drawnCards.map(c => c.name),
-        currentCardName: currentCard ? currentCard.name : null
-    };
-    localStorage.setItem("tarotState_" + currentDeck, JSON.stringify(state));
+function getDeckProgress(deckName) {
+    const state = localStorage.getItem(`tarotState_${deckName}`);
+    if (!state) return 0;
+    try {
+        const parsed = JSON.parse(state);
+        return parsed.drawnCardNames?.length || 0;
+    } catch (e) {
+        return 0;
+    }
 }
 
-function loadStateFromLocalStorage() {
-    const saved = localStorage.getItem("tarotState_" + currentDeck);
-    if (!saved) return;
-    const state = JSON.parse(saved);
-    availableCards = tarotCards.filter(c => state.availableCardNames.includes(c.name));
-    drawnCards = state.drawnCardNames.map(name => tarotCards.find(c => c.name === name)).filter(Boolean);
-    currentCard = tarotCards.find(c => c.name === state.currentCardName);
-    if (currentCard) displayCard(currentCard);
-    updateDeckCounter();
-    updateDrawnCardsList();
+function determineInitialDeck() {
+    const decks = Array.from(deckSelector.options).map(option => option.value);
+    let maxProgress = -1;
+    let selectedDeck = null;
+
+    // Check progress for each deck
+    decks.forEach(deck => {
+        const progress = getDeckProgress(deck);
+        if (progress > maxProgress) {
+            maxProgress = progress;
+            selectedDeck = deck;
+        }
+    });
+
+    // If no progress found for any deck, pick a random one
+    if (maxProgress === 0) {
+        selectedDeck = decks[Math.floor(Math.random() * decks.length)];
+    }
+
+    // Update the dropdown selection
+    deckSelector.value = selectedDeck;
+    return selectedDeck;
 }
 
 function setLoadingState(isLoading) {
@@ -213,4 +227,4 @@ deckSelector.addEventListener("change", function(e) {
 
 createStars();
 setLoadingState(true);
-loadDeck("emoji");
+loadDeck(determineInitialDeck());
