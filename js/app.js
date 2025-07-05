@@ -99,6 +99,8 @@ function shuffleDeck() {
     document.getElementById("interpretationText").textContent = "";
     drawButton.textContent = "Draw Your Card";
     drawButton.disabled = false;
+    // Remove any leftover click handler from the card
+    document.getElementById("tarotCard").onclick = null;
     saveStateToLocalStorage();
 }
 
@@ -125,29 +127,31 @@ function drawCard() {
             revealTextDiv.textContent = 'Click to reveal';
             cardBack.appendChild(revealTextDiv);
             tarotCardWrapper.classList.add("awaiting-reveal");
+            // Only make the card clickable if a card is in play
+            tarotCardElement.onclick = function () {
+                if (this.classList.contains("flipped")) return;
+                tarotCardWrapper.classList.remove("awaiting-reveal");
+                this.classList.add("flipped");
+                // Remove from available, add to drawn, update state
+                const idx = availableCards.findIndex(c => c.name === currentCard.name);
+                if (idx > -1) availableCards.splice(idx, 1);
+                drawnCards.unshift(currentCard);
+                updateDeckCounter();
+                updateDrawnCardsList();
+                saveStateToLocalStorage();
+                // Re-enable deck selector after reveal
+                deckSelector.disabled = false;
+                setTimeout(() => {
+                    interpretationTextElement.textContent = currentCard.interpretation;
+                    interpretationElement.classList.add("show");
+                }, 400);
+            };
         } else {
             tarotCardWrapper.classList.remove("awaiting-reveal");
+            tarotCardElement.onclick = null;
         }
         // Disable deck selector while a card is awaiting reveal
         deckSelector.disabled = true;
-        tarotCardElement.onclick = function () {
-            if (this.classList.contains("flipped")) return;
-            tarotCardWrapper.classList.remove("awaiting-reveal");
-            this.classList.add("flipped");
-            // Remove from available, add to drawn, update state
-            const idx = availableCards.findIndex(c => c.name === currentCard.name);
-            if (idx > -1) availableCards.splice(idx, 1);
-            drawnCards.unshift(currentCard);
-            updateDeckCounter();
-            updateDrawnCardsList();
-            saveStateToLocalStorage();
-            // Re-enable deck selector after reveal
-            deckSelector.disabled = false;
-            setTimeout(() => {
-                interpretationTextElement.textContent = currentCard.interpretation;
-                interpretationElement.classList.add("show");
-            }, 400);
-        };
         drawButton.textContent = availableCards.length > 0 ? "Draw Next Card" : "Deck Empty";
         drawButton.disabled = availableCards.length === 0;
         isDrawing = false;
