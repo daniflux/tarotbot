@@ -236,6 +236,20 @@ shuffleButton.addEventListener("click", shuffleDeck);
 deckSelector.addEventListener("change", function(e) {
     // Save state of current deck before switching
     saveStateToLocalStorage();
+    // Reset all card-related UI and state
+    currentCard = null;
+    const tarotCardElement = document.getElementById("tarotCard");
+    const tarotCardWrapper = document.getElementById("tarotCardWrapper");
+    if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
+    // Reset card-back to only show the moon pattern, remove any reveal text
+    const cardBack = tarotCardElement.querySelector(".card-back");
+    if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
+    document.getElementById("cardFront").innerHTML = "";
+    document.getElementById("interpretation").classList.remove("show");
+    document.getElementById("interpretationText").textContent = "";
+    drawButton.textContent = "Draw Your Card";
+    drawButton.disabled = false;
+    // Now load the new deck
     loadDeck(e.target.value);
 });
 
