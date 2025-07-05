@@ -255,11 +255,26 @@ function loadDeck(deckName) {
 drawButton.addEventListener("click", drawCard);
 shuffleButton.addEventListener("click", shuffleDeck);
 deckSelector.addEventListener("change", function(e) {
-    // Save state of current deck before switching
-    saveStateToLocalStorage();
+    // If a card is drawn but not revealed (not flipped), prompt the user
+    const tarotCardElement = document.getElementById("tarotCard");
+    const isAwaitingReveal = tarotCardElement && tarotCardElement.onclick && currentCard && !tarotCardElement.classList.contains("flipped");
+    if (isAwaitingReveal) {
+        const keep = confirm("You have a drawn card that hasn't been revealed yet. Do you want to keep it or discard it?\n\nOK = Keep, Cancel = Discard");
+        if (keep) {
+            // Move currentCard to drawnCards, remove from availableCards
+            const idx = availableCards.findIndex(c => c.name === currentCard.name);
+            if (idx > -1) availableCards.splice(idx, 1);
+            drawnCards.unshift(currentCard);
+        } else {
+            currentCard = null;
+        }
+        saveStateToLocalStorage();
+    } else {
+        // Save state of current deck before switching
+        saveStateToLocalStorage();
+    }
     // Reset all card-related UI and state
     currentCard = null;
-    const tarotCardElement = document.getElementById("tarotCard");
     const tarotCardWrapper = document.getElementById("tarotCardWrapper");
     if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
     // Reset card-back to only show the moon pattern, remove any reveal text
