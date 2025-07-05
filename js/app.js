@@ -84,6 +84,8 @@ function shuffleDeck() {
     availableCards = [...tarotCards];
     drawnCards = [];
     currentCard = null; // Ensure currentCard is cleared to prevent deck-switcher lockout after shuffling an unrevealed card
+    // Always re-enable deck selector after shuffle, even if a card was awaiting reveal
+    deckSelector.disabled = false;
     localStorage.removeItem('tarotState_' + currentDeck);
     updateDeckCounter();
     updateDrawnCardsList();
