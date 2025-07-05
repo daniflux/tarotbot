@@ -88,8 +88,9 @@ function shuffleDeck() {
     updateDeckCounter();
     updateDrawnCardsList();
     const tarotCardElement = document.getElementById("tarotCard");
+    const tarotCardWrapper = document.getElementById("tarotCardWrapper");
     tarotCardElement.classList.remove("flipped");
-    tarotCardElement.classList.remove("awaiting-reveal");
+    if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
     document.getElementById("cardFront").innerHTML = "";
     document.getElementById("interpretation").classList.remove("show");
     document.getElementById("interpretationText").textContent = "";
@@ -102,6 +103,7 @@ function drawCard() {
     if (availableCards.length === 0 || isDrawing) return;
     isDrawing = true;
     const tarotCardElement = document.getElementById("tarotCard");
+    const tarotCardWrapper = document.getElementById("tarotCardWrapper");
     const cardBack = tarotCardElement.querySelector(".card-back");
     const interpretationElement = document.getElementById("interpretation");
     const interpretationTextElement = document.getElementById("interpretationText");
@@ -117,12 +119,12 @@ function drawCard() {
         revealTextDiv.textContent = 'Click to reveal';
         cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
         cardBack.appendChild(revealTextDiv);
-        // Add the glow effect
-        tarotCardElement.classList.add("awaiting-reveal");
+        // Add the glow effect to the wrapper
+        tarotCardWrapper.classList.add("awaiting-reveal");
         tarotCardElement.onclick = function () {
             if (this.classList.contains("flipped")) return;
-            // Remove glow effect when flipped
-            this.classList.remove("awaiting-reveal");
+            // Remove glow effect from wrapper when flipped
+            tarotCardWrapper.classList.remove("awaiting-reveal");
             this.classList.add("flipped");
             // Remove from available, add to drawn, update state
             const idx = availableCards.findIndex(c => c.name === currentCard.name);
