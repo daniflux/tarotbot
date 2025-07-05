@@ -128,6 +128,8 @@ function drawCard() {
         } else {
             tarotCardWrapper.classList.remove("awaiting-reveal");
         }
+        // Disable deck selector while a card is awaiting reveal
+        deckSelector.disabled = true;
         tarotCardElement.onclick = function () {
             if (this.classList.contains("flipped")) return;
             tarotCardWrapper.classList.remove("awaiting-reveal");
@@ -139,6 +141,8 @@ function drawCard() {
             updateDeckCounter();
             updateDrawnCardsList();
             saveStateToLocalStorage();
+            // Re-enable deck selector after reveal
+            deckSelector.disabled = false;
             setTimeout(() => {
                 interpretationTextElement.textContent = currentCard.interpretation;
                 interpretationElement.classList.add("show");
@@ -268,7 +272,9 @@ deckSelector.addEventListener("change", function(e) {
         } else {
             currentCard = null;
         }
-        saveStateToLocalStorage();
+    saveStateToLocalStorage();
+    // Always re-enable deck selector after shuffle
+    deckSelector.disabled = false;
     } else {
         // Save state of current deck before switching
         saveStateToLocalStorage();
