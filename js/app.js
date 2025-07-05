@@ -200,6 +200,27 @@ function setLoadingState(isLoading) {
 
 function loadDeck(deckName) {
     currentDeck = deckName;
+    // --- Reset all card state and UI before loading new deck ---
+    currentCard = null;
+    availableCards = [];
+    drawnCards = [];
+    // Remove reveal/sparkle UI
+    const tarotCardElement = document.getElementById("tarotCard");
+    const tarotCardWrapper = document.getElementById("tarotCardWrapper");
+    if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
+    if (tarotCardElement) tarotCardElement.classList.remove("flipped");
+    // Clear card front and back
+    const cardBack = tarotCardElement ? tarotCardElement.querySelector(".card-back") : null;
+    if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
+    const cardFront = document.getElementById("cardFront");
+    if (cardFront) cardFront.innerHTML = "";
+    document.getElementById("interpretation").classList.remove("show");
+    document.getElementById("interpretationText").textContent = "";
+    drawButton.textContent = "Draw Your Card";
+    drawButton.disabled = false;
+    updateDeckCounter();
+    updateDrawnCardsList();
+    // --- End reset ---
     themeLink.href = 'decks/' + deckName + '/style.css';
     setLoadingState(true);
     // Remove any previous deckData and deck script
