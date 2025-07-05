@@ -91,6 +91,9 @@ function shuffleDeck() {
     const tarotCardWrapper = document.getElementById("tarotCardWrapper");
     tarotCardElement.classList.remove("flipped");
     if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
+    // Reset card-back to only show the moon pattern, remove any reveal text
+    const cardBack = tarotCardElement.querySelector(".card-back");
+    if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
     document.getElementById("cardFront").innerHTML = "";
     document.getElementById("interpretation").classList.remove("show");
     document.getElementById("interpretationText").textContent = "";
@@ -114,16 +117,19 @@ function drawCard() {
         const randomIndex = Math.floor(Math.random() * availableCards.length);
         currentCard = availableCards[randomIndex];
         displayCard(currentCard);
-        const revealTextDiv = document.createElement('div');
-        revealTextDiv.className = 'reveal-text';
-        revealTextDiv.textContent = 'Click to reveal';
+        // Only show reveal text and sparkle if a card is drawn
         cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
-        cardBack.appendChild(revealTextDiv);
-        // Add the glow effect to the wrapper
-        tarotCardWrapper.classList.add("awaiting-reveal");
+        if (currentCard) {
+            const revealTextDiv = document.createElement('div');
+            revealTextDiv.className = 'reveal-text';
+            revealTextDiv.textContent = 'Click to reveal';
+            cardBack.appendChild(revealTextDiv);
+            tarotCardWrapper.classList.add("awaiting-reveal");
+        } else {
+            tarotCardWrapper.classList.remove("awaiting-reveal");
+        }
         tarotCardElement.onclick = function () {
             if (this.classList.contains("flipped")) return;
-            // Remove glow effect from wrapper when flipped
             tarotCardWrapper.classList.remove("awaiting-reveal");
             this.classList.add("flipped");
             // Remove from available, add to drawn, update state
