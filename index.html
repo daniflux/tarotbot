@@ -51,9 +51,11 @@
             transform-style: preserve-3d;
             transition: transform 0.8s;
             cursor: pointer;
+            pointer-events: auto;
         }
         .tarot-card-wrapper.awaiting-reveal {
             animation: card-glow 2s infinite;
+            pointer-events: none;
         }
 
         @keyframes card-glow {
