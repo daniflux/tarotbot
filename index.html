@@ -40,9 +40,17 @@
             width: 200px;
             height: 350px;
             border-radius: 15px;
-            overflow: hidden;
             margin: 0 10px;
             position: relative;
+        }
+        .tarot-card-wrapper.awaiting-reveal::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 15px;
+            z-index: 2;
+            pointer-events: none;
+            animation: card-glow 2s infinite;
         }
         .tarot-card {
             width: 100%;
@@ -53,23 +61,18 @@
             cursor: pointer;
             pointer-events: auto;
         }
-        .tarot-card-wrapper.awaiting-reveal {
-            animation: card-glow 2s infinite;
-            pointer-events: none;
-        }
-
         @keyframes card-glow {
             0% {
-                box-shadow: 0 0 15px rgba(255, 215, 0, 0.3),
-                           0 0 30px rgba(255, 215, 0, 0.2);
+                box-shadow: 0 0 15px 8px rgba(255, 215, 0, 0.3),
+                           0 0 30px 16px rgba(255, 215, 0, 0.2);
             }
             50% {
-                box-shadow: 0 0 25px rgba(255, 215, 0, 0.5),
-                           0 0 50px rgba(255, 215, 0, 0.3);
+                box-shadow: 0 0 25px 16px rgba(255, 215, 0, 0.5),
+                           0 0 50px 24px rgba(255, 215, 0, 0.3);
             }
             100% {
-                box-shadow: 0 0 15px rgba(255, 215, 0, 0.3),
-                           0 0 30px rgba(255, 215, 0, 0.2);
+                box-shadow: 0 0 15px 8px rgba(255, 215, 0, 0.3),
+                           0 0 30px 16px rgba(255, 215, 0, 0.2);
             }
         }
         .tarot-card.flipped {
