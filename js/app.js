@@ -1,13 +1,17 @@
 // js/app.js — TarotBot: Emoji Oracle
-// Adds a third deck "emoji-matrix" that gets a Matrix code-rain canvas background
-// and forces emoji to render as single-color green (Matrix style).
-// Original Emoji & Rider-Waite decks remain unchanged.
+// This file contains the core logic for the Tarot card drawing application.
+// It manages the state of the deck, card drawing, and user interface updates.
 
 // --- DOM refs ---
 const drawButton = document.getElementById("drawButton");
 const shuffleButton = document.getElementById("shuffleButton");
 const deckSelector = document.getElementById("deckSelector");
 const themeLink = document.getElementById("deckTheme");
+const modalOverlay = document.getElementById("modalOverlay");
+const modalContent = document.getElementById("modalContent");
+const modalText = document.getElementById("modalText");
+const modalOkButton = document.getElementById("modalOkButton");
+const modalCancelButton = document.getElementById("modalCancelButton");
 
 // --- State ---
 let tarotCards = [];
@@ -37,6 +41,26 @@ function loadStateFromLocalStorage() {
   if (currentCard) displayCard(currentCard);
   updateDeckCounter();
   updateDrawnCardsList();
+}
+
+// --- Custom Modal Dialog (replaces alert and confirm) ---
+function showModal(text, onOk, onCancel) {
+    modalText.textContent = text;
+    modalOkButton.style.display = onOk ? 'inline-block' : 'none';
+    modalCancelButton.style.display = onCancel ? 'inline-block' : 'none';
+    modalOverlay.classList.add('show');
+    return new Promise((resolve) => {
+        modalOkButton.onclick = () => {
+            modalOverlay.classList.remove('show');
+            resolve(true);
+            if (onOk) onOk();
+        };
+        modalCancelButton.onclick = () => {
+            modalOverlay.classList.remove('show');
+            resolve(false);
+            if (onCancel) onCancel();
+        };
+    });
 }
 
 // --- Backgrounds ---
@@ -231,6 +255,8 @@ function shuffleDeck() {
   document.getElementById("interpretationText").textContent = "";
   drawButton.textContent = "Draw Your Card";
   drawButton.disabled = false;
+  // Always re-enable deck selector after shuffle
+  deckSelector.disabled = false;
   saveStateToLocalStorage();
 }
 
@@ -271,6 +297,8 @@ function drawCard() {
       updateDeckCounter();
       updateDrawnCardsList();
       saveStateToLocalStorage();
+      // FIX: Re-enable the deck selector here
+      deckSelector.disabled = false;
       setTimeout(() => {
         interpretationTextElement.textContent = currentCard.interpretation;
         interpretationElement.classList.add("show");
@@ -378,8 +406,7 @@ function loadDeck(deckName) {
   script.dataset.deck = deckName;
   script.onload = function() {
     if (!window.deckData || !window.deckData.cards) {
-      alert('Failed to load deck data.');
-      setLoadingState(true);
+      showModal('Failed to load deck data.', () => setLoadingState(true));
       return;
     }
     tarotCards = window.deckData.cards;
@@ -392,8 +419,7 @@ function loadDeck(deckName) {
     setLoadingState(false);
   };
   script.onerror = function() {
-    alert('Failed to load deck script. Please try again or check your files.');
-    setLoadingState(true);
+    showModal('Failed to load deck script. Please try again or check your files.', () => setLoadingState(true));
   };
   document.body.appendChild(script);
 }
@@ -402,13 +428,27 @@ function loadDeck(deckName) {
 drawButton.addEventListener("click", drawCard);
 shuffleButton.addEventListener("click", shuffleDeck);
 
-deckSelector.addEventListener("change", function(e) {
-  // Save state of current deck before switching
-  saveStateToLocalStorage();
-
-  // Reset UI bits
-  currentCard = null;
+deckSelector.addEventListener("change", async function(e) {
   const tarotCardElement = document.getElementById("tarotCard");
+  const isAwaitingReveal = tarotCardElement && tarotCardElement.onclick && currentCard && !tarotCardElement.classList.contains("flipped");
+
+  if (isAwaitingReveal) {
+      // Use the custom modal instead of confirm
+      const keep = await showModal("You have a drawn card that hasn't been revealed yet. Do you want to keep it or discard it?", () => {}, () => {});
+      if (keep) {
+          const idx = availableCards.findIndex(c => c.name === currentCard.name);
+          if (idx > -1) availableCards.splice(idx, 1);
+          drawnCards.unshift(currentCard);
+      } else {
+          currentCard = null;
+      }
+      saveStateToLocalStorage();
+      deckSelector.disabled = false;
+  } else {
+      saveStateToLocalStorage();
+  }
+
+  currentCard = null;
   const tarotCardWrapper = document.getElementById("tarotCardWrapper");
   if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
   const cardBack = tarotCardElement.querySelector(".card-back");
@@ -418,8 +458,6 @@ deckSelector.addEventListener("change", function(e) {
   document.getElementById("interpretationText").textContent = "";
   drawButton.textContent = "Draw Your Card";
   drawButton.disabled = false;
-
-  // Load selected deck
   loadDeck(e.target.value);
 });
 
