@@ -1,0 +1,73 @@
+/* decks/emoji-matrix/style.css — Matrix skin (green-on-black) */
+
+:root{
+  --matrix-green: #00ff66;
+  --matrix-green-dim: #00cc55;
+  --matrix-border: #00aa44;
+}
+
+body { color: var(--matrix-green); }
+
+/* Titles/labels */
+h1, h2, #deckCounter, footer a, footer strong {
+  color: var(--matrix-green) !important;
+  text-shadow: 0 0 6px rgba(0,255,102,0.3);
+}
+
+/* Card chrome */
+.card-back, .card-front {
+  background: rgba(0,0,0,0.85) !important;
+  border: 2px solid var(--matrix-border) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+}
+
+.back-pattern {
+  color: var(--matrix-green) !important;
+  opacity: 0.85 !important;
+  text-shadow: 0 0 8px rgba(0,255,102,0.4);
+}
+
+/* Force single-color “emoji” look */
+.card-symbol, .drawn-card-symbol {
+  font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", "Apple Symbols", "Noto Emoji", monospace !important;
+  color: var(--matrix-green);
+  text-shadow: 0 0 8px rgba(0,255,102,0.45);
+  /* If OS insists on color emoji, push to green monochrome: */
+  filter: grayscale(1) contrast(1.1) brightness(1.1) sepia(1) hue-rotate(85deg) saturate(4);
+}
+
+.card-name { color: var(--matrix-green) !important; }
+.card-meaning { color: #9be3b7 !important; }
+
+/* Buttons */
+.draw-button {
+  background: linear-gradient(45deg, var(--matrix-green), var(--matrix-green-dim)) !important;
+  color: #001a0c !important;
+  box-shadow: 0 5px 14px rgba(0,255,102,0.25) !important;
+}
+.draw-button:hover {
+  box-shadow: 0 8px 20px rgba(0,255,102,0.35) !important;
+  transform: translateY(-2px);
+}
+
+/* Panels */
+#interpretation, #drawnCardsSection {
+  background: rgba(0,0,0,0.6) !important;
+  border: 1px solid rgba(0,255,102,0.25) !important;
+}
+.drawn-card-item {
+  background: rgba(0,0,0,0.55) !important;
+  border-left: 3px solid var(--matrix-green) !important;
+}
+
+/* Hide starfield for this deck; JS will add canvas instead */
+.stars-background { display: none !important; }
+
+/* Matrix canvas background */
+#matrixCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  background: #000;
+}
