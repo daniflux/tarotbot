@@ -1,5 +1,4 @@
-// js/app.js – TarotBot: Emoji Oracle
-// Fixed version - cards will draw properly again
+// js/app.js — TarotBot: Emoji Oracle (fixed reveal + Matrix deck option)
 
 // --- DOM refs ---
 const drawButton = document.getElementById("drawButton");
@@ -14,6 +13,55 @@ let drawnCards = [];
 let currentCard = null;
 let isDrawing = false;
 let currentDeck = 'emoji'; // will be set by determineInitialDeck()
+
+// --- Reveal click handling (robust) ---
+let readyToReveal = false;
+let revealHandlerBound = false;
+function onCardRevealClick() {
+  if (!readyToReveal) return;
+  const tarotCardElement = document.getElementById("tarotCard");
+  const tarotCardWrapper = document.getElementById("tarotCardWrapper");
+  const interpretationElement = document.getElementById("interpretation");
+  const interpretationTextElement = document.getElementById("interpretationText");
+
+  if (!tarotCardElement || tarotCardElement.classList.contains("flipped")) return;
+
+  readyToReveal = false; // prevent double triggers
+  tarotCardWrapper?.classList.remove("awaiting-reveal");
+  tarotCardElement.classList.add("flipped");
+
+  // Move current card from available -> drawn
+  const idx = availableCards.findIndex(c => c.name === (currentCard && currentCard.name));
+  if (idx > -1) availableCards.splice(idx, 1);
+  if (currentCard) drawnCards.unshift(currentCard);
+
+  updateDeckCounter();
+  updateDrawnCardsList();
+  saveStateToLocalStorage();
+
+  // Re-enable deck switch now that reveal happened
+  deckSelector.disabled = false;
+
+  setTimeout(() => {
+    if (currentCard) {
+      interpretationTextElement.textContent = currentCard.interpretation;
+      interpretationElement.classList.add("show");
+    }
+  }, 400);
+}
+
+function bindRevealHandler() {
+  const tarotCardElement = document.getElementById("tarotCard");
+  if (!tarotCardElement || revealHandlerBound) return;
+  tarotCardElement.addEventListener("click", onCardRevealClick);
+  revealHandlerBound = true;
+}
+function unbindRevealHandler() {
+  const tarotCardElement = document.getElementById("tarotCard");
+  if (!tarotCardElement || !revealHandlerBound) return;
+  tarotCardElement.removeEventListener("click", onCardRevealClick);
+  revealHandlerBound = false;
+}
 
 // --- LocalStorage helpers for deck state ---
 function saveStateToLocalStorage() {
@@ -38,7 +86,7 @@ function loadStateFromLocalStorage() {
 }
 
 // --- Backgrounds ---
-// Stars: used for non-Matrix decks
+// Stars for non-Matrix decks
 function createStars() {
   const starsContainer = document.getElementById('stars');
   if (!starsContainer) return;
@@ -59,7 +107,7 @@ function clearStars() {
   if (starsContainer) starsContainer.innerHTML = '';
 }
 
-// Matrix: canvas code-rain background for the emoji-matrix deck only
+// Matrix code rain for emoji-matrix only
 let matrix = {
   canvas: null,
   ctx: null,
@@ -74,6 +122,11 @@ function createMatrixCanvas() {
   if (matrix.canvas) return; // already exists
   matrix.canvas = document.createElement('canvas');
   matrix.canvas.id = 'matrixCanvas';
+  // ensure canvas sits behind the card
+  matrix.canvas.style.position = 'fixed';
+  matrix.canvas.style.inset = '0';
+  matrix.canvas.style.zIndex = '-1';
+  matrix.canvas.style.background = '#000';
   document.body.appendChild(matrix.canvas);
   matrix.ctx = matrix.canvas.getContext('2d');
   resizeMatrixCanvas();
@@ -122,7 +175,7 @@ function drawMatrixFrame() {
   const w = window.innerWidth;
   const h = window.innerHeight;
 
-  // fade trail
+  // trailing fade
   ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
   ctx.fillRect(0, 0, w, h);
 
@@ -130,7 +183,7 @@ function drawMatrixFrame() {
   ctx.textBaseline = "top";
   ctx.font = matrix.fontSize + "px monospace";
 
-  const chars = "01アイウエオカキクケコﾱﾲﾳﾴﾵﾶﾷﾸﾹﾺﾊﾋﾌﾍﾎ01#$%&*+=-";
+  const chars = "01アイウエオカキクケコｱｲｳｴｵｶｷｸｹｺﾊﾋﾌﾍﾎ01#$%&*+=-";
 
   const colCount = matrix.columns.length;
   for (let i = 0; i < colCount; i++) {
@@ -172,12 +225,9 @@ function updateDeckCounter() {
   counter.textContent = `Cards Remaining: ${availableCards.length}/${tarotCards.length}`;
 }
 
-// Force text/monochrome emoji where possible (U+FE0E text presentation) - only for matrix deck
+// Prefer a text/monochrome emoji rendering (falls back gracefully)
 function toTextPresentation(emoji) {
-  if (currentDeck === 'emoji-matrix') {
-    return (emoji || '') + '\uFE0E';
-  }
-  return emoji || '';
+  return (emoji || '') + '\uFE0E';
 }
 
 function updateDrawnCardsList() {
@@ -216,47 +266,62 @@ function shuffleDeck() {
   if (isDrawing) return;
   availableCards = [...tarotCards];
   drawnCards = [];
-  currentCard = null;
-  // Always re-enable deck selector after shuffle, even if a card was awaiting reveal
+  currentCard = null; // ensure no pending reveal
   deckSelector.disabled = false;
   localStorage.removeItem('tarotState_' + currentDeck);
   updateDeckCounter();
   updateDrawnCardsList();
+
   const tarotCardElement = document.getElementById("tarotCard");
   const tarotCardWrapper = document.getElementById("tarotCardWrapper");
   tarotCardElement.classList.remove("flipped");
-  if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
-  // Reset card-back to only show the moon pattern, remove any reveal text
+  tarotCardWrapper?.classList.remove("awaiting-reveal");
+
+  // Reset card faces & interpretation
   const cardBack = tarotCardElement.querySelector(".card-back");
   if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
   document.getElementById("cardFront").innerHTML = "";
   document.getElementById("interpretation").classList.remove("show");
   document.getElementById("interpretationText").textContent = "";
+
   drawButton.textContent = "Draw Your Card";
   drawButton.disabled = false;
-  // Remove any leftover click handler from the card
-  tarotCardElement.onclick = null;
+
+  // Clear click readiness
+  readyToReveal = false;
+  unbindRevealHandler();
+
   saveStateToLocalStorage();
 }
 
 function drawCard() {
   if (availableCards.length === 0 || isDrawing) return;
   isDrawing = true;
+
   const tarotCardElement = document.getElementById("tarotCard");
   const tarotCardWrapper = document.getElementById("tarotCardWrapper");
   const cardBack = tarotCardElement.querySelector(".card-back");
   const interpretationElement = document.getElementById("interpretation");
   const interpretationTextElement = document.getElementById("interpretationText");
+
+  // Make sure the card is definitely on top/clickable
+  tarotCardElement.style.position = 'relative';
+  tarotCardElement.style.zIndex = '1';
+  tarotCardElement.style.cursor = 'pointer';
+
   const wasFlipped = tarotCardElement.classList.contains("flipped");
   tarotCardElement.classList.remove("flipped");
   drawButton.disabled = true;
-  
-  setTimeout(() => {
+
+  const prep = () => {
+    // choose a random card
     const randomIndex = Math.floor(Math.random() * availableCards.length);
     currentCard = availableCards[randomIndex];
+
+    // populate the front
     displayCard(currentCard);
-    
-    // Only show reveal text and sparkle if a card is drawn
+
+    // reset back, add "Click to reveal"
     cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
     if (currentCard) {
       const revealTextDiv = document.createElement('div');
@@ -264,38 +329,36 @@ function drawCard() {
       revealTextDiv.textContent = 'Click to reveal';
       cardBack.appendChild(revealTextDiv);
       tarotCardWrapper.classList.add("awaiting-reveal");
-      
-      // Only make the card clickable if a card is in play
-      tarotCardElement.onclick = function () {
-        if (this.classList.contains("flipped")) return;
-        tarotCardWrapper.classList.remove("awaiting-reveal");
-        this.classList.add("flipped");
-        // Remove from available, add to drawn, update state
-        const idx = availableCards.findIndex(c => c.name === currentCard.name);
-        if (idx > -1) availableCards.splice(idx, 1);
-        drawnCards.unshift(currentCard);
-        updateDeckCounter();
-        updateDrawnCardsList();
-        saveStateToLocalStorage();
-        // Re-enable deck selector after reveal
-        deckSelector.disabled = false;
-        setTimeout(() => {
-          interpretationTextElement.textContent = currentCard.interpretation;
-          interpretationElement.classList.add("show");
-        }, 400);
-      };
     } else {
       tarotCardWrapper.classList.remove("awaiting-reveal");
-      tarotCardElement.onclick = null;
     }
-    
-    // Disable deck selector while a card is awaiting reveal
+
+    // arm click AFTER card is ready
+    readyToReveal = !!currentCard;
+    unbindRevealHandler();
+    bindRevealHandler();
+
+    // hide interpretation until reveal
+    interpretationElement.classList.remove("show");
+    interpretationTextElement.textContent = "";
+
+    // while awaiting reveal, lock deck switch to avoid weird state
     deckSelector.disabled = true;
+
+    // button state
     drawButton.textContent = availableCards.length > 0 ? "Draw Next Card" : "Deck Empty";
     drawButton.disabled = availableCards.length === 0;
+
     isDrawing = false;
     saveStateToLocalStorage();
-  }, wasFlipped ? 800 : 0);
+  };
+
+  // if it was previously flipped, give it a tiny beat to reset
+  if (wasFlipped) {
+    setTimeout(prep, 250);
+  } else {
+    prep();
+  }
 }
 
 // --- Deck selection helpers ---
@@ -305,12 +368,11 @@ function getDeckProgress(deckName) {
   try {
     const parsed = JSON.parse(state);
     return parsed.drawnCardNames?.length || 0;
-  } catch (e) {
+  } catch {
     return 0;
   }
 }
 
-// Prefer the deck with progress; otherwise random. Works with or without Matrix option present.
 function determineInitialDeck() {
   const decks = Array.from(deckSelector.options).map(option => option.value);
   let maxProgress = -1;
@@ -344,18 +406,20 @@ function setLoadingState(isLoading) {
   }
 }
 
-// Load deck data + toggle background skin
+// Load a deck + toggle backgrounds
 function loadDeck(deckName) {
   currentDeck = deckName;
 
-  // --- Reset all card state and UI before loading new deck ---
+  // Reset all card state/UI before loading
   currentCard = null;
   availableCards = [];
   drawnCards = [];
+
   const tarotCardElement = document.getElementById("tarotCard");
   const tarotCardWrapper = document.getElementById("tarotCardWrapper");
-  if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
-  if (tarotCardElement) tarotCardElement.classList.remove("flipped");
+  tarotCardWrapper?.classList.remove("awaiting-reveal");
+  tarotCardElement?.classList.remove("flipped");
+
   const cardBack = tarotCardElement ? tarotCardElement.querySelector(".card-back") : null;
   if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
   const cardFront = document.getElementById("cardFront");
@@ -364,31 +428,33 @@ function loadDeck(deckName) {
   document.getElementById("interpretationText").textContent = "";
   drawButton.textContent = "Draw Your Card";
   drawButton.disabled = false;
+
+  // reset click readiness
+  readyToReveal = false;
+  unbindRevealHandler();
+
   updateDeckCounter();
   updateDrawnCardsList();
-  // --- End reset ---
 
   // Toggle backgrounds
   if (deckName === 'emoji-matrix') {
-    // Matrix deck: show code rain, hide/clear stars (CSS also hides stars for this deck)
     createMatrixCanvas();
-    clearStars();
+    clearStars(); // CSS likely hides, but we also clear to be safe
   } else {
-    // Other decks: destroy matrix canvas, show stars
     destroyMatrixCanvas();
     createStars();
   }
 
-  // Theme CSS swap
+  // Theme swap
   themeLink.href = 'decks/' + deckName + '/style.css';
   setLoadingState(true);
 
-  // Remove any previous deckData and deck script
+  // Remove previous deckData and script
   try { delete window.deckData; } catch (e) { window.deckData = undefined; }
-  var oldScripts = document.querySelectorAll('script[data-deck]');
-  oldScripts.forEach(function(s) { s.remove(); });
+  const oldScripts = document.querySelectorAll('script[data-deck]');
+  oldScripts.forEach(s => s.remove());
 
-  var script = document.createElement('script');
+  const script = document.createElement('script');
   script.src = 'decks/' + deckName + '/deck.js';
   script.dataset.deck = deckName;
   script.onload = function() {
@@ -398,7 +464,8 @@ function loadDeck(deckName) {
       return;
     }
     tarotCards = window.deckData.cards;
-    // Try to load state for this deck, or shuffle if none
+
+    // Try to load saved state, otherwise fresh shuffle
     if (localStorage.getItem('tarotState_' + currentDeck)) {
       loadStateFromLocalStorage();
     } else {
@@ -413,31 +480,49 @@ function loadDeck(deckName) {
   document.body.appendChild(script);
 }
 
-// --- Event listeners ---
+// --- Events ---
 drawButton.addEventListener("click", drawCard);
 shuffleButton.addEventListener("click", shuffleDeck);
 
 deckSelector.addEventListener("change", function(e) {
-  // Save state of current deck before switching
-  saveStateToLocalStorage();
-  
-  // Reset all card-related UI and state
-  currentCard = null;
+  // If a card is drawn but not revealed, prompt
   const tarotCardElement = document.getElementById("tarotCard");
+  const awaitingReveal = readyToReveal && tarotCardElement && !tarotCardElement.classList.contains("flipped");
+
+  if (awaitingReveal && currentCard) {
+    const keep = confirm("You have a drawn card that hasn't been revealed yet. Keep it (move to drawn) or discard?\n\nOK = Keep, Cancel = Discard");
+    if (keep) {
+      const idx = availableCards.findIndex(c => c.name === currentCard.name);
+      if (idx > -1) availableCards.splice(idx, 1);
+      drawnCards.unshift(currentCard);
+    } else {
+      currentCard = null;
+    }
+    saveStateToLocalStorage();
+    deckSelector.disabled = false;
+  } else {
+    // Save state of current deck before switching
+    saveStateToLocalStorage();
+  }
+
+  // Reset face/interpretation before loading
+  currentCard = null;
   const tarotCardWrapper = document.getElementById("tarotCardWrapper");
-  if (tarotCardWrapper) tarotCardWrapper.classList.remove("awaiting-reveal");
-  // Reset card-back to only show the moon pattern, remove any reveal text
-  const cardBack = tarotCardElement ? tarotCardElement.querySelector(".card-back") : null;
+  tarotCardWrapper?.classList.remove("awaiting-reveal");
+
+  const cardBack = tarotCardElement.querySelector(".card-back");
   if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
   document.getElementById("cardFront").innerHTML = "";
   document.getElementById("interpretation").classList.remove("show");
   document.getElementById("interpretationText").textContent = "";
+
   drawButton.textContent = "Draw Your Card";
   drawButton.disabled = false;
-  // Remove any leftover click handler from the card
-  if (tarotCardElement) tarotCardElement.onclick = null;
 
-  // Now load the new deck
+  readyToReveal = false;
+  unbindRevealHandler();
+
+  // Load new deck
   loadDeck(e.target.value);
 });
 
