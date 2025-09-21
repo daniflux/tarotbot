@@ -176,7 +176,7 @@ function drawMatrixFrame() {
   const h = window.innerHeight;
 
   // trailing fade
-  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.015)";
   ctx.fillRect(0, 0, w, h);
 
   ctx.fillStyle = "#00ff66";
