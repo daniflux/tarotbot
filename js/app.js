@@ -165,7 +165,7 @@ function initMatrixColumns() {
   const cols = Math.ceil(window.innerWidth / matrix.fontSize);
   matrix.columns = new Array(cols).fill(0).map(() => ({
     y: Math.floor(Math.random() * -50), // start above view
-    speed: 2 + Math.random() * 3,
+    speed: 1 + Math.random() * 2,
   }));
 }
 
@@ -192,7 +192,7 @@ function drawMatrixFrame() {
     const char = chars.charAt(Math.floor(Math.random() * chars.length));
     ctx.fillText(char, x, col.y * matrix.fontSize);
 
-    col.y += col.speed * 0.08;
+    col.y += col.speed * 0.04;
 
     if (col.y * matrix.fontSize > h + 100) {
       col.y = Math.floor(Math.random() * -20);
