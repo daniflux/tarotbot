@@ -172,9 +172,12 @@ function updateDeckCounter() {
   counter.textContent = `Cards Remaining: ${availableCards.length}/${tarotCards.length}`;
 }
 
-// Force text/monochrome emoji where possible (U+FE0E text presentation)
+// Force text/monochrome emoji where possible (U+FE0E text presentation) - only for matrix deck
 function toTextPresentation(emoji) {
-  return (emoji || '') + '\uFE0E';
+  if (currentDeck === 'emoji-matrix') {
+    return (emoji || '') + '\uFE0E';
+  }
+  return emoji || '';
 }
 
 function updateDrawnCardsList() {
