@@ -10,6 +10,113 @@ let currentCard = null;
 let isDrawing = false;
 let currentDeck = 'emoji';
 
+// --- Matrix rain background (for 'emoji-matrix' only) ---
+let matrix = {
+  canvas: null,
+  ctx: null,
+  columns: [],
+  fontSize: 16,
+  animationId: null,
+  lastW: 0,
+  lastH: 0,
+};
+
+function createMatrixCanvas() {
+  if (matrix.canvas) return;
+  matrix.canvas = document.createElement('canvas');
+  matrix.canvas.id = 'matrixCanvas';
+  document.body.appendChild(matrix.canvas);
+  matrix.ctx = matrix.canvas.getContext('2d');
+  resizeMatrixCanvas();
+  initMatrixColumns();
+  startMatrix();
+}
+
+function destroyMatrixCanvas() {
+  if (matrix.animationId) cancelAnimationFrame(matrix.animationId);
+  matrix.animationId = null;
+  if (matrix.canvas && matrix.canvas.parentNode) {
+    matrix.canvas.parentNode.removeChild(matrix.canvas);
+  }
+  matrix.canvas = null;
+  matrix.ctx = null;
+  matrix.columns = [];
+}
+
+function resizeMatrixCanvas() {
+  if (!matrix.canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  matrix.canvas.width = Math.floor(w * dpr);
+  matrix.canvas.height = Math.floor(h * dpr);
+  matrix.canvas.style.width = w + 'px';
+  matrix.canvas.style.height = h + 'px';
+  matrix.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  matrix.lastW = w; matrix.lastH = h;
+  matrix.fontSize = Math.max(14, Math.min(22, Math.floor(w / 80)));
+  matrix.ctx.font = matrix.fontSize + "px monospace";
+}
+
+function initMatrixColumns() {
+  if (!matrix.canvas) return;
+  const cols = Math.ceil(window.innerWidth / matrix.fontSize);
+  matrix.columns = new Array(cols).fill(0).map(() => ({
+    y: Math.floor(Math.random() * -50),
+    speed: 2 + Math.random() * 3,
+  }));
+}
+
+function drawMatrixFrame() {
+  if (!matrix.ctx) return;
+  const ctx = matrix.ctx;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.fillStyle = "#00ff66";
+  ctx.textBaseline = "top";
+  ctx.font = matrix.fontSize + "px monospace";
+
+  const chars = "01アイウエオカキクケコｱｲｳｴｵｶｷｸｹｺﾊﾋﾌﾍﾎ01#$%&*+=-";
+
+  const colCount = matrix.columns.length;
+  for (let i = 0; i < colCount; i++) {
+    const x = i * matrix.fontSize;
+    const col = matrix.columns[i];
+    const char = chars.charAt(Math.floor(Math.random() * chars.length));
+    ctx.fillText(char, x, col.y * matrix.fontSize);
+
+    col.y += col.speed * 0.08;
+
+    if (col.y * matrix.fontSize > h + 100) {
+      col.y = Math.floor(Math.random() * -20);
+      col.speed = 2 + Math.random() * 3;
+    }
+  }
+
+  matrix.animationId = requestAnimationFrame(drawMatrixFrame);
+}
+
+function startMatrix() {
+  if (!matrix.canvas) return;
+  matrix.ctx.fillStyle = "#000";
+  matrix.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+  drawMatrixFrame();
+}
+
+window.addEventListener('resize', () => {
+  if (!matrix.canvas) return;
+  const w = window.innerWidth, h = window.innerHeight;
+  if (w !== matrix.lastW || h !== matrix.lastH) {
+    resizeMatrixCanvas();
+    initMatrixColumns();
+  }
+});
+
+
 // --- LocalStorage helpers for deck state ---
 function saveStateToLocalStorage() {
     const state = {
