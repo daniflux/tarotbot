@@ -26,7 +26,8 @@ body {
     text-align: center;
     max-width: 600px;
     width: 100%;
-    z-index: 1; /* Ensure sits above stars/matrix */
+    position: relative;
+    z-index: 10; /* Ensures content is above stars/matrix */
 }
 
 header h1 {
@@ -46,9 +47,7 @@ header .subtitle {
     font-weight: normal;
 }
 
-.controls {
-    margin-bottom: 20px;
-}
+.controls { margin-bottom: 20px; }
 
 select#deckSelector {
     padding: 10px;
@@ -61,12 +60,14 @@ select#deckSelector {
     cursor: pointer;
 }
 
-/* --- Card Architecture --- */
+/* --- Card Architecture (Reverted to standard 3D behavior) --- */
 .card-container {
     perspective: 1000px;
     margin: 30px 0;
     display: flex;
     justify-content: center;
+    position: relative;
+    z-index: 20; /* High z-index to ensure clickable */
 }
 
 .tarot-card-wrapper {
@@ -81,9 +82,9 @@ select#deckSelector {
 .tarot-card-wrapper.awaiting-reveal::before {
     content: '';
     position: absolute;
-    inset: -5px; /* simplified top/left/right/bottom */
+    top: -5px; left: -5px; right: -5px; bottom: -5px;
     border-radius: 20px;
-    z-index: -1;
+    z-index: -1; 
     animation: card-glow 2s infinite;
 }
 
@@ -98,7 +99,7 @@ select#deckSelector {
     height: 100%;
     position: relative;
     transform-style: preserve-3d;
-    transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy flip */
+    transition: transform 0.8s;
     cursor: pointer;
 }
 
@@ -121,6 +122,7 @@ select#deckSelector {
     padding: 20px;
     box-sizing: border-box;
     overflow: hidden; 
+    /* Removed z-index here to fix click issues */
 }
 
 .card-back {
@@ -170,7 +172,7 @@ select#deckSelector {
     left: 50%;
     transform: translateX(-50%);
     animation: pulse 1.5s infinite;
-    pointer-events: none;
+    pointer-events: none; /* Crucial: ensures clicks pass through to card */
     white-space: nowrap;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -182,7 +184,7 @@ select#deckSelector {
     100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
 }
 
-/* --- Buttons & Inputs --- */
+/* --- Buttons --- */
 .deck-status {
     font-size: 1.1rem;
     color: var(--gold);
@@ -235,7 +237,7 @@ select#deckSelector {
     filter: grayscale(0.8);
 }
 
-/* --- Panels (Interpretation & History) --- */
+/* --- Panels --- */
 .interpretation-panel, .history-panel {
     margin-top: 30px;
     padding: 25px;
@@ -258,7 +260,7 @@ select#deckSelector {
 .interpretation-panel.show {
     opacity: 1;
     max-height: 500px;
-    padding: 25px; /* ensure padding is applied when open */
+    padding: 25px; 
 }
 
 .interpretation-panel h2, .history-panel h2 {
@@ -275,14 +277,12 @@ select#deckSelector {
     line-height: 1.6;
 }
 
-/* History List */
 #drawnList {
     max-height: 300px;
     overflow-y: auto;
     padding-right: 5px;
 }
 
-/* Custom Scrollbar */
 #drawnList::-webkit-scrollbar {
     width: 8px;
 }
@@ -321,13 +321,8 @@ select#deckSelector {
     margin-top: 4px;
 }
 
-.empty-state {
-    opacity: 0.7; 
-    font-style: italic; 
-    text-align: center;
-}
+.empty-state { opacity: 0.7; font-style: italic; text-align: center; }
 
-/* --- Footer --- */
 footer {
     margin-top: 50px;
     font-size: 0.9rem;
@@ -335,20 +330,14 @@ footer {
     opacity: 0.8;
 }
 
-footer a {
-    color: var(--gold);
-    text-decoration: underline;
-}
+footer a { color: var(--gold); text-decoration: underline; }
 
-/* --- Star Background --- */
+/* --- Backgrounds --- */
 .stars-background {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     pointer-events: none;
-    z-index: -2;
+    z-index: 0; /* Behind content */
 }
 
 .star {
@@ -363,15 +352,8 @@ footer a {
     50% { opacity: 0.8; transform: scale(1.2); }
 }
 
-/* Mobile Adjustments */
 @media (max-width: 480px) {
     header h1 { font-size: 2rem; }
-    .tarot-card-wrapper {
-        width: 180px;
-        height: 300px;
-    }
-    .action-button {
-        width: 100%; /* stacked buttons on mobile */
-        padding: 12px;
-    }
+    .tarot-card-wrapper { width: 180px; height: 300px; }
+    .action-button { width: 100%; padding: 12px; }
 }
