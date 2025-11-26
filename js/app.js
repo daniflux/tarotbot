@@ -1,96 +1,339 @@
-// js/app.js — TarotBot: Emoji Oracle (fixed reveal + Matrix deck option)
+// js/app.js — TarotBot: Emoji Oracle (Refactored)
 
-// --- DOM refs ---
-const drawButton = document.getElementById("drawButton");
-const shuffleButton = document.getElementById("shuffleButton");
-const deckSelector = document.getElementById("deckSelector");
-const themeLink = document.getElementById("deckTheme");
+// --- DOM References ---
+const ui = {
+  drawButton: document.getElementById("drawButton"),
+  shuffleButton: document.getElementById("shuffleButton"),
+  deckSelector: document.getElementById("deckSelector"),
+  themeLink: document.getElementById("deckTheme"),
+  cardWrapper: document.getElementById("tarotCardWrapper"),
+  cardElement: document.getElementById("tarotCard"),
+  cardFront: document.getElementById("cardFront"),
+  cardBack: document.querySelector(".card-back"),
+  interpretationPanel: document.getElementById("interpretation"),
+  interpretationText: document.getElementById("interpretationText"),
+  deckCounter: document.getElementById("deckCounter"),
+  drawnList: document.getElementById("drawnList")
+};
 
 // --- State ---
-let tarotCards = [];
-let availableCards = [];
-let drawnCards = [];
-let currentCard = null;
-let isDrawing = false;
-let currentDeck = 'emoji'; // will be set by determineInitialDeck()
+const state = {
+  tarotCards: [],
+  availableCards: [],
+  drawnCards: [],
+  currentCard: null,
+  currentDeck: 'emoji',
+  isAnimating: false,
+  readyToReveal: false
+};
 
-// --- Reveal click handling (robust) ---
-let readyToReveal = false;
-let revealHandlerBound = false;
-function onCardRevealClick() {
-  if (!readyToReveal) return;
-  const tarotCardElement = document.getElementById("tarotCard");
-  const tarotCardWrapper = document.getElementById("tarotCardWrapper");
-  const interpretationElement = document.getElementById("interpretation");
-  const interpretationTextElement = document.getElementById("interpretationText");
+// --- Core Functions ---
 
-  if (!tarotCardElement || tarotCardElement.classList.contains("flipped")) return;
+function init() {
+  state.currentDeck = determineInitialDeck();
+  loadDeck(state.currentDeck);
+  setupEventListeners();
+}
 
-  readyToReveal = false; // prevent double triggers
-  tarotCardWrapper?.classList.remove("awaiting-reveal");
-  tarotCardElement.classList.add("flipped");
+function setupEventListeners() {
+  ui.drawButton.addEventListener("click", handleDrawClick);
+  ui.shuffleButton.addEventListener("click", handleShuffleClick);
+  ui.deckSelector.addEventListener("change", handleDeckChange);
+  
+  // Card click for reveal
+  ui.cardElement.addEventListener("click", handleRevealClick);
+}
 
-  // Move current card from available -> drawn
-  const idx = availableCards.findIndex(c => c.name === (currentCard && currentCard.name));
-  if (idx > -1) availableCards.splice(idx, 1);
-  if (currentCard) drawnCards.unshift(currentCard);
+// --- Deck Loading Logic ---
 
-  updateDeckCounter();
-  updateDrawnCardsList();
-  saveStateToLocalStorage();
-
-  // Re-enable deck switch now that reveal happened
-  deckSelector.disabled = false;
-
-  setTimeout(() => {
-    if (currentCard) {
-      interpretationTextElement.textContent = currentCard.interpretation;
-      interpretationElement.classList.add("show");
+function determineInitialDeck() {
+  const savedDeck = localStorage.getItem('lastSelectedDeck');
+  if (savedDeck) {
+    // Validate if the option actually exists in the dropdown
+    const exists = Array.from(ui.deckSelector.options).some(opt => opt.value === savedDeck);
+    if (exists) {
+      ui.deckSelector.value = savedDeck;
+      return savedDeck;
     }
-  }, 400);
+  }
+  return 'emoji'; // Default
 }
 
-function bindRevealHandler() {
-  const tarotCardElement = document.getElementById("tarotCard");
-  if (!tarotCardElement || revealHandlerBound) return;
-  tarotCardElement.addEventListener("click", onCardRevealClick);
-  revealHandlerBound = true;
-}
-function unbindRevealHandler() {
-  const tarotCardElement = document.getElementById("tarotCard");
-  if (!tarotCardElement || !revealHandlerBound) return;
-  tarotCardElement.removeEventListener("click", onCardRevealClick);
-  revealHandlerBound = false;
-}
+function loadDeck(deckName) {
+  setLoadingState(true);
+  state.currentDeck = deckName;
+  localStorage.setItem('lastSelectedDeck', deckName);
 
-// --- LocalStorage helpers for deck state ---
-function saveStateToLocalStorage() {
-  const state = {
-    availableCardNames: availableCards.map(c => c.name),
-    drawnCardNames: drawnCards.map(c => c.name),
-    currentCardName: currentCard ? currentCard.name : null
+  // Clean up visual effects
+  if (deckName === 'emoji-matrix') {
+    startMatrixEffect();
+    clearStars();
+  } else {
+    stopMatrixEffect();
+    createStars();
+  }
+
+  // Swap Theme
+  ui.themeLink.href = `decks/${deckName}/style.css`;
+
+  // Remove old script
+  const oldScript = document.querySelector('script[data-deck-script]');
+  if (oldScript) oldScript.remove();
+  
+  // Clean up global window data
+  try { delete window.deckData; } catch (e) { window.deckData = undefined; }
+
+  // Inject new script
+  const script = document.createElement('script');
+  script.src = `decks/${deckName}/deck.js?v=${new Date().getTime()}`; // Prevent caching
+  script.setAttribute('data-deck-script', 'true');
+  
+  script.onload = () => {
+    if (!window.deckData || !window.deckData.cards) {
+      alert('Error loading deck data.');
+      return;
+    }
+    
+    state.tarotCards = [...window.deckData.cards];
+    
+    // Attempt to load previous session for this deck
+    if (localStorage.getItem(`tarotState_${deckName}`)) {
+      loadStateFromStorage();
+    } else {
+      resetDeckState();
+    }
+    
+    setLoadingState(false);
   };
-  localStorage.setItem("tarotState_" + currentDeck, JSON.stringify(state));
+  
+  script.onerror = () => {
+    alert("Failed to load deck file.");
+    setLoadingState(false);
+  };
+
+  document.body.appendChild(script);
 }
 
-function loadStateFromLocalStorage() {
-  const saved = localStorage.getItem("tarotState_" + currentDeck);
-  if (!saved) return;
-  const state = JSON.parse(saved);
-  availableCards = tarotCards.filter(c => state.availableCardNames.includes(c.name));
-  drawnCards = state.drawnCardNames.map(name => tarotCards.find(c => c.name === name)).filter(Boolean);
-  currentCard = tarotCards.find(c => c.name === state.currentCardName);
-  if (currentCard) displayCard(currentCard);
-  updateDeckCounter();
-  updateDrawnCardsList();
+// --- Action Handlers ---
+
+function handleDrawClick() {
+  if (state.availableCards.length === 0 || state.isAnimating || state.readyToReveal) return;
+
+  state.isAnimating = true;
+  ui.drawButton.disabled = true;
+
+  // Visual reset before new draw
+  ui.cardElement.classList.remove("flipped");
+  ui.interpretationPanel.classList.remove("show");
+  
+  // Wait for flip back animation if needed
+  setTimeout(() => {
+    const randomIndex = Math.floor(Math.random() * state.availableCards.length);
+    state.currentCard = state.availableCards[randomIndex];
+
+    prepareCardFace(state.currentCard);
+    
+    // Set up Back of Card
+    ui.cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
+    const revealHint = document.createElement('div');
+    revealHint.className = 'reveal-text';
+    revealHint.textContent = 'Click to Reveal';
+    ui.cardBack.appendChild(revealHint);
+
+    ui.cardWrapper.classList.add("awaiting-reveal");
+    
+    // Update State
+    state.readyToReveal = true;
+    state.isAnimating = false;
+    
+    // Button Text Update
+    ui.drawButton.textContent = "Reveal Card Above";
+    ui.drawButton.disabled = true; // Force user to click card
+    
+    saveStateToStorage();
+  }, 300);
 }
 
-// --- Backgrounds ---
-// Stars for non-Matrix decks
+function handleRevealClick() {
+  if (!state.readyToReveal || state.cardElement.classList.contains("flipped")) return;
+
+  state.readyToReveal = false;
+  ui.cardWrapper.classList.remove("awaiting-reveal");
+  ui.cardElement.classList.add("flipped");
+
+  // Move card logic
+  const idx = state.availableCards.findIndex(c => c.name === state.currentCard.name);
+  if (idx > -1) state.availableCards.splice(idx, 1);
+  state.drawnCards.unshift(state.currentCard);
+
+  updateUI();
+  saveStateToStorage();
+
+  // Show interpretation after flip animation
+  setTimeout(() => {
+    if (state.currentCard) {
+      ui.interpretationText.textContent = state.currentCard.interpretation;
+      ui.interpretationPanel.classList.add("show");
+    }
+    
+    // Reset button state
+    ui.drawButton.disabled = state.availableCards.length === 0;
+    ui.drawButton.textContent = state.availableCards.length === 0 ? "Deck Empty" : "Draw Next Card";
+    ui.deckSelector.disabled = false;
+  }, 600);
+}
+
+function handleShuffleClick() {
+  if (confirm("Reshuffle the entire deck? This clears your current spread.")) {
+    resetDeckState();
+    localStorage.removeItem(`tarotState_${state.currentDeck}`);
+  }
+}
+
+function handleDeckChange(e) {
+  const newDeck = e.target.value;
+  
+  // Protect unrevealed cards
+  if (state.currentCard && state.readyToReveal) {
+    const confirmSwitch = confirm("You have a card waiting to be revealed. Switching decks will discard it. Continue?");
+    if (!confirmSwitch) {
+      ui.deckSelector.value = state.currentDeck; // revert
+      return;
+    }
+  }
+  
+  loadDeck(newDeck);
+}
+
+// --- Helper Functions ---
+
+function resetDeckState() {
+  state.availableCards = [...state.tarotCards];
+  state.drawnCards = [];
+  state.currentCard = null;
+  state.readyToReveal = false;
+  
+  // UI Resets
+  ui.cardElement.classList.remove("flipped");
+  ui.cardWrapper.classList.remove("awaiting-reveal");
+  ui.interpretationPanel.classList.remove("show");
+  ui.interpretationText.textContent = "";
+  ui.cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
+  ui.cardFront.innerHTML = '';
+  
+  updateUI();
+  ui.drawButton.disabled = false;
+  ui.drawButton.textContent = "Draw Your Card";
+}
+
+function prepareCardFace(card) {
+  if (card.image) {
+    ui.cardFront.innerHTML = `
+      <img src="${card.image}" alt="${card.name}" style="width: 100%; border-radius: 12px; max-height: 250px; object-fit: contain;">
+      <div class="card-name">${card.name}</div>
+    `;
+  } else {
+    ui.cardFront.innerHTML = `
+      <div class="card-symbol">${toTextPresentation(card.symbol)}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-meaning">${card.meaning || ''}</div>
+    `;
+  }
+}
+
+function updateUI() {
+  ui.deckCounter.textContent = `Cards Remaining: ${state.availableCards.length}/${state.tarotCards.length}`;
+  
+  // Update Drawn List
+  if (state.drawnCards.length === 0) {
+    ui.drawnList.innerHTML = '<p class="empty-state">No cards drawn yet</p>';
+  } else {
+    ui.drawnList.innerHTML = state.drawnCards.map(card => `
+      <div class="drawn-card-item">
+        <div class="drawn-card-symbol">${toTextPresentation(card.symbol)}</div>
+        <div class="drawn-card-info">
+          <div class="drawn-card-name">${card.name}</div>
+          <div class="drawn-card-meaning">${card.meaning}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function toTextPresentation(emoji) {
+  // Adds variation selector-15 for text presentation if valid emoji
+  return emoji ? (emoji + '\uFE0E') : '🔮';
+}
+
+function setLoadingState(isLoading) {
+  ui.drawButton.disabled = isLoading;
+  ui.shuffleButton.disabled = isLoading;
+  ui.deckSelector.disabled = isLoading;
+  if (isLoading) {
+    ui.deckCounter.textContent = "Loading deck...";
+  }
+}
+
+// --- Persistence ---
+
+function saveStateToStorage() {
+  const data = {
+    availableNames: state.availableCards.map(c => c.name),
+    drawnNames: state.drawnCards.map(c => c.name),
+    currentCardName: state.currentCard ? state.currentCard.name : null,
+    readyToReveal: state.readyToReveal
+  };
+  localStorage.setItem(`tarotState_${state.currentDeck}`, JSON.stringify(data));
+}
+
+function loadStateFromStorage() {
+  try {
+    const raw = localStorage.getItem(`tarotState_${state.currentDeck}`);
+    if (!raw) return;
+    
+    const saved = JSON.parse(raw);
+    
+    // Reconstruct objects from names
+    state.availableCards = state.tarotCards.filter(c => saved.availableNames.includes(c.name));
+    state.drawnCards = saved.drawnNames.map(n => state.tarotCards.find(c => c.name === n)).filter(Boolean);
+    state.readyToReveal = saved.readyToReveal || false;
+    
+    if (saved.currentCardName) {
+      state.currentCard = state.tarotCards.find(c => c.name === saved.currentCardName);
+      prepareCardFace(state.currentCard);
+      
+      // If we reloaded while a card was waiting to be flipped
+      if (state.readyToReveal) {
+        ui.cardWrapper.classList.add("awaiting-reveal");
+        ui.cardBack.innerHTML = '<div class="back-pattern">🌙</div><div class="reveal-text">Click to Reveal</div>';
+        ui.drawButton.textContent = "Reveal Card Above";
+        ui.drawButton.disabled = true;
+      } else {
+        // Card was already revealed
+        ui.cardElement.classList.add("flipped");
+        ui.interpretationText.textContent = state.currentCard.interpretation;
+        ui.interpretationPanel.classList.add("show");
+        ui.drawButton.textContent = "Draw Next Card";
+      }
+    } else {
+      ui.drawButton.textContent = "Draw Your Card";
+    }
+
+    updateUI();
+  } catch (e) {
+    console.error("Save state corruption", e);
+    resetDeckState();
+  }
+}
+
+// --- Background Effects (Matrix / Stars) ---
+
 function createStars() {
-  const starsContainer = document.getElementById('stars');
-  if (!starsContainer) return;
-  starsContainer.innerHTML = '';
+  const container = document.getElementById('stars');
+  if (!container) return;
+  container.innerHTML = '';
+  container.style.display = 'block';
+  
   for (let i = 0; i < 50; i++) {
     const star = document.createElement('div');
     star.className = 'star';
@@ -99,433 +342,86 @@ function createStars() {
     star.style.top = Math.random() * 100 + '%';
     star.style.animationDelay = Math.random() * 3 + 's';
     star.style.fontSize = (Math.random() * 0.5 + 0.5) + 'rem';
-    starsContainer.appendChild(star);
+    container.appendChild(star);
   }
 }
+
 function clearStars() {
-  const starsContainer = document.getElementById('stars');
-  if (starsContainer) starsContainer.innerHTML = '';
+  const container = document.getElementById('stars');
+  if (container) container.style.display = 'none';
 }
 
-// Matrix code rain for emoji-matrix only
-let matrix = {
+// Matrix Logic Encapsulation
+const MatrixEffect = {
   canvas: null,
   ctx: null,
   columns: [],
   fontSize: 16,
   animationId: null,
-  lastW: 0,
-  lastH: 0,
+
+  init() {
+    if (this.canvas) return;
+    this.canvas = document.createElement('canvas');
+    this.canvas.id = 'matrixCanvas';
+    Object.assign(this.canvas.style, {
+      position: 'fixed', inset: '0', zIndex: '-1', background: '#000'
+    });
+    document.body.appendChild(this.canvas);
+    this.ctx = this.canvas.getContext('2d');
+    
+    window.addEventListener('resize', () => this.resize());
+    this.resize();
+    this.loop();
+  },
+
+  resize() {
+    if (!this.canvas) return;
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.fontSize = Math.max(14, Math.floor(window.innerWidth / 80));
+    this.ctx.font = `${this.fontSize}px monospace`;
+    
+    const cols = Math.ceil(this.canvas.width / this.fontSize);
+    this.columns = Array(cols).fill(0).map(() => ({
+      y: Math.random() * -100,
+      speed: 1 + Math.random() * 2
+    }));
+  },
+
+  loop() {
+    if (!this.ctx) return;
+    
+    // Fade out
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.fillStyle = "#00ff66";
+    this.columns.forEach((col, i) => {
+      const char = String.fromCharCode(0x30A0 + Math.random() * 96);
+      const x = i * this.fontSize;
+      const y = col.y * this.fontSize;
+      
+      this.ctx.fillText(char, x, y);
+      
+      if (y > this.canvas.height && Math.random() > 0.975) {
+        col.y = 0;
+      }
+      col.y += col.speed * 0.5; // slower speed
+    });
+
+    this.animationId = requestAnimationFrame(() => this.loop());
+  },
+
+  destroy() {
+    if (this.animationId) cancelAnimationFrame(this.animationId);
+    if (this.canvas) this.canvas.remove();
+    this.canvas = null;
+    this.ctx = null;
+  }
 };
 
-function createMatrixCanvas() {
-  if (matrix.canvas) return; // already exists
-  matrix.canvas = document.createElement('canvas');
-  matrix.canvas.id = 'matrixCanvas';
-  // ensure canvas sits behind the card
-  matrix.canvas.style.position = 'fixed';
-  matrix.canvas.style.inset = '0';
-  matrix.canvas.style.zIndex = '-1';
-  matrix.canvas.style.background = '#000';
-  document.body.appendChild(matrix.canvas);
-  matrix.ctx = matrix.canvas.getContext('2d');
-  resizeMatrixCanvas();
-  initMatrixColumns();
-  startMatrix();
-}
-
-function destroyMatrixCanvas() {
-  if (matrix.animationId) cancelAnimationFrame(matrix.animationId);
-  matrix.animationId = null;
-  if (matrix.canvas && matrix.canvas.parentNode) {
-    matrix.canvas.parentNode.removeChild(matrix.canvas);
-  }
-  matrix.canvas = null;
-  matrix.ctx = null;
-  matrix.columns = [];
-}
-
-function resizeMatrixCanvas() {
-  if (!matrix.canvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  matrix.canvas.width = Math.floor(w * dpr);
-  matrix.canvas.height = Math.floor(h * dpr);
-  matrix.canvas.style.width = w + 'px';
-  matrix.canvas.style.height = h + 'px';
-  matrix.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  matrix.lastW = w; matrix.lastH = h;
-  matrix.fontSize = Math.max(14, Math.min(22, Math.floor(w / 80)));
-  matrix.ctx.font = matrix.fontSize + "px monospace";
-}
-
-function initMatrixColumns() {
-  if (!matrix.canvas) return;
-  const cols = Math.ceil(window.innerWidth / matrix.fontSize);
-  matrix.columns = new Array(cols).fill(0).map(() => ({
-    y: Math.floor(Math.random() * -50), // start above view
-    speed: 1 + Math.random() * 2,
-  }));
-}
-
-function drawMatrixFrame() {
-  if (!matrix.ctx) return;
-  const ctx = matrix.ctx;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
-  // trailing fade
-  ctx.fillStyle = "rgba(0, 0, 0, 0.015)";
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.fillStyle = "#00ff66";
-  ctx.textBaseline = "top";
-  ctx.font = matrix.fontSize + "px monospace";
-
-  const chars = "01アイウエオカキクケコｱｲｳｴｵｶｷｸｹｺﾊﾋﾌﾍﾎ01#$%&*+=-";
-
-  const colCount = matrix.columns.length;
-  for (let i = 0; i < colCount; i++) {
-    const x = i * matrix.fontSize;
-    const col = matrix.columns[i];
-    const char = chars.charAt(Math.floor(Math.random() * chars.length));
-    ctx.fillText(char, x, col.y * matrix.fontSize);
-
-    col.y += col.speed * 0.04;
-
-    if (col.y * matrix.fontSize > h + 100) {
-      col.y = Math.floor(Math.random() * -20);
-      col.speed = 2 + Math.random() * 3;
-    }
-  }
-
-  matrix.animationId = requestAnimationFrame(drawMatrixFrame);
-}
-
-function startMatrix() {
-  if (!matrix.canvas) return;
-  matrix.ctx.fillStyle = "#000";
-  matrix.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-  drawMatrixFrame();
-}
-
-window.addEventListener('resize', () => {
-  if (!matrix.canvas) return;
-  const w = window.innerWidth, h = window.innerHeight;
-  if (w !== matrix.lastW || h !== matrix.lastH) {
-    resizeMatrixCanvas();
-    initMatrixColumns();
-  }
-});
-
-// --- UI updates ---
-function updateDeckCounter() {
-  const counter = document.getElementById('deckCounter');
-  counter.textContent = `Cards Remaining: ${availableCards.length}/${tarotCards.length}`;
-}
-
-// Prefer a text/monochrome emoji rendering (falls back gracefully)
-function toTextPresentation(emoji) {
-  return (emoji || '') + '\uFE0E';
-}
-
-function updateDrawnCardsList() {
-  const drawnList = document.getElementById('drawnList');
-  if (drawnCards.length === 0) {
-    drawnList.innerHTML = '<p style="opacity: 0.7; font-style: italic;">No cards drawn yet</p>';
-    return;
-  }
-  drawnList.innerHTML = drawnCards.map(card => `
-    <div class="drawn-card-item">
-      <div class="drawn-card-symbol">${toTextPresentation(card.symbol || '')}</div>
-      <div class="drawn-card-info">
-        <div class="drawn-card-name">${card.name}</div>
-        <div class="drawn-card-meaning">${card.meaning}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function displayCard(card) {
-  const cardFront = document.getElementById("cardFront");
-  if (card.image) {
-    cardFront.innerHTML =
-      '<img src="' + card.image + '" alt="' + card.name + '" style="width: 100%; border-radius: 12px;">' +
-      '<div class="card-name">' + card.name + '</div>';
-  } else {
-    cardFront.innerHTML =
-      '<div class="card-symbol">' + toTextPresentation(card.symbol || '') + '</div>' +
-      '<div class="card-name">' + card.name + '</div>' +
-      '<div class="card-meaning">' + (card.meaning || '') + '</div>';
-  }
-}
-
-// --- Actions ---
-function shuffleDeck() {
-  if (isDrawing) return;
-  availableCards = [...tarotCards];
-  drawnCards = [];
-  currentCard = null; // ensure no pending reveal
-  deckSelector.disabled = false;
-  localStorage.removeItem('tarotState_' + currentDeck);
-  updateDeckCounter();
-  updateDrawnCardsList();
-
-  const tarotCardElement = document.getElementById("tarotCard");
-  const tarotCardWrapper = document.getElementById("tarotCardWrapper");
-  tarotCardElement.classList.remove("flipped");
-  tarotCardWrapper?.classList.remove("awaiting-reveal");
-
-  // Reset card faces & interpretation
-  const cardBack = tarotCardElement.querySelector(".card-back");
-  if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
-  document.getElementById("cardFront").innerHTML = "";
-  document.getElementById("interpretation").classList.remove("show");
-  document.getElementById("interpretationText").textContent = "";
-
-  drawButton.textContent = "Draw Your Card";
-  drawButton.disabled = false;
-
-  // Clear click readiness
-  readyToReveal = false;
-  unbindRevealHandler();
-
-  saveStateToLocalStorage();
-}
-
-function drawCard() {
-  if (availableCards.length === 0 || isDrawing) return;
-  isDrawing = true;
-
-  const tarotCardElement = document.getElementById("tarotCard");
-  const tarotCardWrapper = document.getElementById("tarotCardWrapper");
-  const cardBack = tarotCardElement.querySelector(".card-back");
-  const interpretationElement = document.getElementById("interpretation");
-  const interpretationTextElement = document.getElementById("interpretationText");
-
-  // Make sure the card is definitely on top/clickable
-  tarotCardElement.style.position = 'relative';
-  tarotCardElement.style.zIndex = '1';
-  tarotCardElement.style.cursor = 'pointer';
-
-  const wasFlipped = tarotCardElement.classList.contains("flipped");
-  tarotCardElement.classList.remove("flipped");
-  drawButton.disabled = true;
-
-  const prep = () => {
-    // choose a random card
-    const randomIndex = Math.floor(Math.random() * availableCards.length);
-    currentCard = availableCards[randomIndex];
-
-    // populate the front
-    displayCard(currentCard);
-
-    // reset back, add "Click to reveal"
-    cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
-    if (currentCard) {
-      const revealTextDiv = document.createElement('div');
-      revealTextDiv.className = 'reveal-text';
-      revealTextDiv.textContent = 'Click to reveal';
-      cardBack.appendChild(revealTextDiv);
-      tarotCardWrapper.classList.add("awaiting-reveal");
-    } else {
-      tarotCardWrapper.classList.remove("awaiting-reveal");
-    }
-
-    // arm click AFTER card is ready
-    readyToReveal = !!currentCard;
-    unbindRevealHandler();
-    bindRevealHandler();
-
-    // hide interpretation until reveal
-    interpretationElement.classList.remove("show");
-    interpretationTextElement.textContent = "";
-
-    // while awaiting reveal, lock deck switch to avoid weird state
-    deckSelector.disabled = true;
-
-    // button state
-    drawButton.textContent = availableCards.length > 0 ? "Draw Next Card" : "Deck Empty";
-    drawButton.disabled = availableCards.length === 0;
-
-    isDrawing = false;
-    saveStateToLocalStorage();
-  };
-
-  // if it was previously flipped, give it a tiny beat to reset
-  if (wasFlipped) {
-    setTimeout(prep, 250);
-  } else {
-    prep();
-  }
-}
-
-// --- Deck selection helpers ---
-function getDeckProgress(deckName) {
-  const state = localStorage.getItem(`tarotState_${deckName}`);
-  if (!state) return 0;
-  try {
-    const parsed = JSON.parse(state);
-    return parsed.drawnCardNames?.length || 0;
-  } catch {
-    return 0;
-  }
-}
-
-function determineInitialDeck() {
-  const decks = Array.from(deckSelector.options).map(option => option.value);
-  let maxProgress = -1;
-  let selectedDeck = decks[0] || 'emoji';
-
-  decks.forEach(deck => {
-    const progress = getDeckProgress(deck);
-    if (progress > maxProgress) {
-      maxProgress = progress;
-      selectedDeck = deck;
-    }
-  });
-
-  if (maxProgress === 0 && decks.length > 0) {
-    selectedDeck = decks[Math.floor(Math.random() * decks.length)];
-  }
-
-  deckSelector.value = selectedDeck;
-  return selectedDeck;
-}
-
-function setLoadingState(isLoading) {
-  drawButton.disabled = isLoading;
-  shuffleButton.disabled = isLoading;
-  if (isLoading) {
-    document.getElementById("deckCounter").textContent = "Loading deck...";
-    document.getElementById("drawnList").innerHTML = '<p style="opacity: 0.7; font-style: italic;">No cards drawn yet</p>';
-    document.getElementById("cardFront").innerHTML = "";
-    document.getElementById("interpretation").classList.remove("show");
-    document.getElementById("interpretationText").textContent = "";
-  }
-}
-
-// Load a deck + toggle backgrounds
-function loadDeck(deckName) {
-  currentDeck = deckName;
-
-  // Reset all card state/UI before loading
-  currentCard = null;
-  availableCards = [];
-  drawnCards = [];
-
-  const tarotCardElement = document.getElementById("tarotCard");
-  const tarotCardWrapper = document.getElementById("tarotCardWrapper");
-  tarotCardWrapper?.classList.remove("awaiting-reveal");
-  tarotCardElement?.classList.remove("flipped");
-
-  const cardBack = tarotCardElement ? tarotCardElement.querySelector(".card-back") : null;
-  if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
-  const cardFront = document.getElementById("cardFront");
-  if (cardFront) cardFront.innerHTML = "";
-  document.getElementById("interpretation").classList.remove("show");
-  document.getElementById("interpretationText").textContent = "";
-  drawButton.textContent = "Draw Your Card";
-  drawButton.disabled = false;
-
-  // reset click readiness
-  readyToReveal = false;
-  unbindRevealHandler();
-
-  updateDeckCounter();
-  updateDrawnCardsList();
-
-  // Toggle backgrounds
-  if (deckName === 'emoji-matrix') {
-    createMatrixCanvas();
-    clearStars(); // CSS likely hides, but we also clear to be safe
-  } else {
-    destroyMatrixCanvas();
-    createStars();
-  }
-
-  // Theme swap
-  themeLink.href = 'decks/' + deckName + '/style.css';
-  setLoadingState(true);
-
-  // Remove previous deckData and script
-  try { delete window.deckData; } catch (e) { window.deckData = undefined; }
-  const oldScripts = document.querySelectorAll('script[data-deck]');
-  oldScripts.forEach(s => s.remove());
-
-  const script = document.createElement('script');
-  script.src = 'decks/' + deckName + '/deck.js';
-  script.dataset.deck = deckName;
-  script.onload = function() {
-    if (!window.deckData || !window.deckData.cards) {
-      alert('Failed to load deck data.');
-      setLoadingState(true);
-      return;
-    }
-    tarotCards = window.deckData.cards;
-
-    // Try to load saved state, otherwise fresh shuffle
-    if (localStorage.getItem('tarotState_' + currentDeck)) {
-      loadStateFromLocalStorage();
-    } else {
-      shuffleDeck();
-    }
-    setLoadingState(false);
-  };
-  script.onerror = function() {
-    alert('Failed to load deck script. Please try again or check your files.');
-    setLoadingState(true);
-  };
-  document.body.appendChild(script);
-}
-
-// --- Events ---
-drawButton.addEventListener("click", drawCard);
-shuffleButton.addEventListener("click", shuffleDeck);
-
-deckSelector.addEventListener("change", function(e) {
-  // If a card is drawn but not revealed, prompt
-  const tarotCardElement = document.getElementById("tarotCard");
-  const awaitingReveal = readyToReveal && tarotCardElement && !tarotCardElement.classList.contains("flipped");
-
-  if (awaitingReveal && currentCard) {
-    const keep = confirm("You have a drawn card that hasn't been revealed yet. Keep it (move to drawn) or discard?\n\nOK = Keep, Cancel = Discard");
-    if (keep) {
-      const idx = availableCards.findIndex(c => c.name === currentCard.name);
-      if (idx > -1) availableCards.splice(idx, 1);
-      drawnCards.unshift(currentCard);
-    } else {
-      currentCard = null;
-    }
-    saveStateToLocalStorage();
-    deckSelector.disabled = false;
-  } else {
-    // Save state of current deck before switching
-    saveStateToLocalStorage();
-  }
-
-  // Reset face/interpretation before loading
-  currentCard = null;
-  const tarotCardWrapper = document.getElementById("tarotCardWrapper");
-  tarotCardWrapper?.classList.remove("awaiting-reveal");
-
-  const cardBack = tarotCardElement.querySelector(".card-back");
-  if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
-  document.getElementById("cardFront").innerHTML = "";
-  document.getElementById("interpretation").classList.remove("show");
-  document.getElementById("interpretationText").textContent = "";
-
-  drawButton.textContent = "Draw Your Card";
-  drawButton.disabled = false;
-
-  readyToReveal = false;
-  unbindRevealHandler();
-
-  // Load new deck
-  loadDeck(e.target.value);
-});
+function startMatrixEffect() { MatrixEffect.init(); }
+function stopMatrixEffect() { MatrixEffect.destroy(); }
 
 // --- Boot ---
-setLoadingState(true);
-loadDeck(determineInitialDeck());
+init();
