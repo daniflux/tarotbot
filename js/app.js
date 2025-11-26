@@ -1,4 +1,4 @@
-// js/app.js — TarotBot: Emoji Oracle (Restored Logic)
+// js/app.js — TarotBot: Emoji Oracle (Fixed Matrix Speed)
 
 // --- DOM References ---
 const drawButton = document.getElementById("drawButton");
@@ -348,7 +348,7 @@ function clearStars() {
   if(s) s.style.display = 'none';
 }
 
-// Matrix
+// Matrix Effect (FIXED SPEED)
 const MatrixEffect = {
   canvas: null, ctx: null, cols: [], id: null,
   init() {
@@ -369,6 +369,7 @@ const MatrixEffect = {
     const size = Math.max(14, Math.floor(window.innerWidth/80));
     this.ctx.font = size+'px monospace';
     const numCols = Math.ceil(this.canvas.width/size);
+    // Speed (s) range is 1 to 3
     this.cols = Array(numCols).fill(0).map(()=>({y:Math.random()*-100, s:1+Math.random()*2, sz: size}));
   },
   loop() {
@@ -380,7 +381,9 @@ const MatrixEffect = {
       const char = String.fromCharCode(0x30A0+Math.random()*96);
       this.ctx.fillText(char, i*col.sz, col.y*col.sz);
       if(col.y*col.sz > this.canvas.height && Math.random()>0.975) col.y=0;
-      col.y += col.s*0.5;
+      
+      // FIXED: Multiplier set to 0.05 (was 0.5) to slow down speed
+      col.y += col.s * 0.05; 
     });
     this.id = requestAnimationFrame(()=>this.loop());
   },
