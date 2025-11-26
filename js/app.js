@@ -1,4 +1,4 @@
-// js/app.js — TarotBot: Emoji Oracle (Refactored)
+// js/app.js — TarotBot: Emoji Oracle (Fixed Emojis)
 
 // --- DOM References ---
 const ui = {
@@ -233,8 +233,9 @@ function prepareCardFace(card) {
       <div class="card-name">${card.name}</div>
     `;
   } else {
+    // UPDATED: Simply use the symbol as-is. Removed the text-forcer.
     ui.cardFront.innerHTML = `
-      <div class="card-symbol">${toTextPresentation(card.symbol)}</div>
+      <div class="card-symbol">${card.symbol || '🔮'}</div>
       <div class="card-name">${card.name}</div>
       <div class="card-meaning">${card.meaning || ''}</div>
     `;
@@ -250,7 +251,7 @@ function updateUI() {
   } else {
     ui.drawnList.innerHTML = state.drawnCards.map(card => `
       <div class="drawn-card-item">
-        <div class="drawn-card-symbol">${toTextPresentation(card.symbol)}</div>
+        <div class="drawn-card-symbol">${card.symbol || '🔮'}</div>
         <div class="drawn-card-info">
           <div class="drawn-card-name">${card.name}</div>
           <div class="drawn-card-meaning">${card.meaning}</div>
@@ -258,11 +259,6 @@ function updateUI() {
       </div>
     `).join('');
   }
-}
-
-function toTextPresentation(emoji) {
-  // Adds variation selector-15 for text presentation if valid emoji
-  return emoji ? (emoji + '\uFE0E') : '🔮';
 }
 
 function setLoadingState(isLoading) {
