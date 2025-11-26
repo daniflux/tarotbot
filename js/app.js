@@ -1,4 +1,4 @@
-// js/app.js — TarotBot: Emoji Oracle (Fixed Emojis)
+// js/app.js — TarotBot: Emoji Oracle (Robust Reveal)
 
 // --- DOM References ---
 const ui = {
@@ -36,7 +36,15 @@ function init() {
 }
 
 function setupEventListeners() {
-  ui.drawButton.addEventListener("click", handleDrawClick);
+  // Main Action Button (Handles both Draw and Reveal)
+  ui.drawButton.addEventListener("click", () => {
+    if (state.readyToReveal) {
+      handleRevealClick();
+    } else {
+      handleDrawClick();
+    }
+  });
+
   ui.shuffleButton.addEventListener("click", handleShuffleClick);
   ui.deckSelector.addEventListener("change", handleDeckChange);
   
@@ -49,14 +57,13 @@ function setupEventListeners() {
 function determineInitialDeck() {
   const savedDeck = localStorage.getItem('lastSelectedDeck');
   if (savedDeck) {
-    // Validate if the option actually exists in the dropdown
     const exists = Array.from(ui.deckSelector.options).some(opt => opt.value === savedDeck);
     if (exists) {
       ui.deckSelector.value = savedDeck;
       return savedDeck;
     }
   }
-  return 'emoji'; // Default
+  return 'emoji'; 
 }
 
 function loadDeck(deckName) {
@@ -64,7 +71,7 @@ function loadDeck(deckName) {
   state.currentDeck = deckName;
   localStorage.setItem('lastSelectedDeck', deckName);
 
-  // Clean up visual effects
+  // Background Effects
   if (deckName === 'emoji-matrix') {
     startMatrixEffect();
     clearStars();
@@ -73,19 +80,14 @@ function loadDeck(deckName) {
     createStars();
   }
 
-  // Swap Theme
   ui.themeLink.href = `decks/${deckName}/style.css`;
 
-  // Remove old script
   const oldScript = document.querySelector('script[data-deck-script]');
   if (oldScript) oldScript.remove();
-  
-  // Clean up global window data
   try { delete window.deckData; } catch (e) { window.deckData = undefined; }
 
-  // Inject new script
   const script = document.createElement('script');
-  script.src = `decks/${deckName}/deck.js?v=${new Date().getTime()}`; // Prevent caching
+  script.src = `decks/${deckName}/deck.js?v=${new Date().getTime()}`;
   script.setAttribute('data-deck-script', 'true');
   
   script.onload = () => {
@@ -96,21 +98,14 @@ function loadDeck(deckName) {
     
     state.tarotCards = [...window.deckData.cards];
     
-    // Attempt to load previous session for this deck
     if (localStorage.getItem(`tarotState_${deckName}`)) {
       loadStateFromStorage();
     } else {
       resetDeckState();
     }
-    
     setLoadingState(false);
   };
   
-  script.onerror = () => {
-    alert("Failed to load deck file.");
-    setLoadingState(false);
-  };
-
   document.body.appendChild(script);
 }
 
@@ -122,18 +117,18 @@ function handleDrawClick() {
   state.isAnimating = true;
   ui.drawButton.disabled = true;
 
-  // Visual reset before new draw
+  // Visual reset
   ui.cardElement.classList.remove("flipped");
   ui.interpretationPanel.classList.remove("show");
   
-  // Wait for flip back animation if needed
+  // Tiny delay to allow flip-back animation if needed
   setTimeout(() => {
     const randomIndex = Math.floor(Math.random() * state.availableCards.length);
     state.currentCard = state.availableCards[randomIndex];
 
     prepareCardFace(state.currentCard);
     
-    // Set up Back of Card
+    // Reset Back
     ui.cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
     const revealHint = document.createElement('div');
     revealHint.className = 'reveal-text';
@@ -146,9 +141,10 @@ function handleDrawClick() {
     state.readyToReveal = true;
     state.isAnimating = false;
     
-    // Button Text Update
-    ui.drawButton.textContent = "Reveal Card Above";
-    ui.drawButton.disabled = true; // Force user to click card
+    // UPDATE BUTTON: Enable it, but make it say "Reveal"
+    ui.drawButton.textContent = "Reveal Card";
+    ui.drawButton.disabled = false; 
+    ui.drawButton.classList.add("pulse-button"); // Optional visual cue
     
     saveStateToStorage();
   }, 300);
@@ -160,6 +156,10 @@ function handleRevealClick() {
   state.readyToReveal = false;
   ui.cardWrapper.classList.remove("awaiting-reveal");
   ui.cardElement.classList.add("flipped");
+  
+  // Clean up button
+  ui.drawButton.classList.remove("pulse-button");
+  ui.drawButton.disabled = true; // Disable briefly while processing
 
   // Move card logic
   const idx = state.availableCards.findIndex(c => c.name === state.currentCard.name);
@@ -169,14 +169,14 @@ function handleRevealClick() {
   updateUI();
   saveStateToStorage();
 
-  // Show interpretation after flip animation
+  // Show interpretation
   setTimeout(() => {
     if (state.currentCard) {
       ui.interpretationText.textContent = state.currentCard.interpretation;
       ui.interpretationPanel.classList.add("show");
     }
     
-    // Reset button state
+    // Reset button for next draw
     ui.drawButton.disabled = state.availableCards.length === 0;
     ui.drawButton.textContent = state.availableCards.length === 0 ? "Deck Empty" : "Draw Next Card";
     ui.deckSelector.disabled = false;
@@ -192,20 +192,17 @@ function handleShuffleClick() {
 
 function handleDeckChange(e) {
   const newDeck = e.target.value;
-  
-  // Protect unrevealed cards
   if (state.currentCard && state.readyToReveal) {
     const confirmSwitch = confirm("You have a card waiting to be revealed. Switching decks will discard it. Continue?");
     if (!confirmSwitch) {
-      ui.deckSelector.value = state.currentDeck; // revert
+      ui.deckSelector.value = state.currentDeck;
       return;
     }
   }
-  
   loadDeck(newDeck);
 }
 
-// --- Helper Functions ---
+// --- Helpers ---
 
 function resetDeckState() {
   state.availableCards = [...state.tarotCards];
@@ -213,13 +210,13 @@ function resetDeckState() {
   state.currentCard = null;
   state.readyToReveal = false;
   
-  // UI Resets
   ui.cardElement.classList.remove("flipped");
   ui.cardWrapper.classList.remove("awaiting-reveal");
   ui.interpretationPanel.classList.remove("show");
   ui.interpretationText.textContent = "";
   ui.cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
   ui.cardFront.innerHTML = '';
+  ui.drawButton.classList.remove("pulse-button");
   
   updateUI();
   ui.drawButton.disabled = false;
@@ -227,13 +224,13 @@ function resetDeckState() {
 }
 
 function prepareCardFace(card) {
+  // Handles both image decks and emoji decks safely
   if (card.image) {
     ui.cardFront.innerHTML = `
       <img src="${card.image}" alt="${card.name}" style="width: 100%; border-radius: 12px; max-height: 250px; object-fit: contain;">
       <div class="card-name">${card.name}</div>
     `;
   } else {
-    // UPDATED: Simply use the symbol as-is. Removed the text-forcer.
     ui.cardFront.innerHTML = `
       <div class="card-symbol">${card.symbol || '🔮'}</div>
       <div class="card-name">${card.name}</div>
@@ -245,7 +242,6 @@ function prepareCardFace(card) {
 function updateUI() {
   ui.deckCounter.textContent = `Cards Remaining: ${state.availableCards.length}/${state.tarotCards.length}`;
   
-  // Update Drawn List
   if (state.drawnCards.length === 0) {
     ui.drawnList.innerHTML = '<p class="empty-state">No cards drawn yet</p>';
   } else {
@@ -265,9 +261,7 @@ function setLoadingState(isLoading) {
   ui.drawButton.disabled = isLoading;
   ui.shuffleButton.disabled = isLoading;
   ui.deckSelector.disabled = isLoading;
-  if (isLoading) {
-    ui.deckCounter.textContent = "Loading deck...";
-  }
+  if (isLoading) ui.deckCounter.textContent = "Loading deck...";
 }
 
 // --- Persistence ---
@@ -288,8 +282,6 @@ function loadStateFromStorage() {
     if (!raw) return;
     
     const saved = JSON.parse(raw);
-    
-    // Reconstruct objects from names
     state.availableCards = state.tarotCards.filter(c => saved.availableNames.includes(c.name));
     state.drawnCards = saved.drawnNames.map(n => state.tarotCards.find(c => c.name === n)).filter(Boolean);
     state.readyToReveal = saved.readyToReveal || false;
@@ -298,14 +290,13 @@ function loadStateFromStorage() {
       state.currentCard = state.tarotCards.find(c => c.name === saved.currentCardName);
       prepareCardFace(state.currentCard);
       
-      // If we reloaded while a card was waiting to be flipped
       if (state.readyToReveal) {
         ui.cardWrapper.classList.add("awaiting-reveal");
         ui.cardBack.innerHTML = '<div class="back-pattern">🌙</div><div class="reveal-text">Click to Reveal</div>';
-        ui.drawButton.textContent = "Reveal Card Above";
-        ui.drawButton.disabled = true;
+        ui.drawButton.textContent = "Reveal Card";
+        ui.drawButton.classList.add("pulse-button");
+        ui.drawButton.disabled = false;
       } else {
-        // Card was already revealed
         ui.cardElement.classList.add("flipped");
         ui.interpretationText.textContent = state.currentCard.interpretation;
         ui.interpretationPanel.classList.add("show");
@@ -314,7 +305,6 @@ function loadStateFromStorage() {
     } else {
       ui.drawButton.textContent = "Draw Your Card";
     }
-
     updateUI();
   } catch (e) {
     console.error("Save state corruption", e);
@@ -322,14 +312,13 @@ function loadStateFromStorage() {
   }
 }
 
-// --- Background Effects (Matrix / Stars) ---
+// --- Background Effects ---
 
 function createStars() {
   const container = document.getElementById('stars');
   if (!container) return;
   container.innerHTML = '';
   container.style.display = 'block';
-  
   for (let i = 0; i < 50; i++) {
     const star = document.createElement('div');
     star.className = 'star';
@@ -347,14 +336,12 @@ function clearStars() {
   if (container) container.style.display = 'none';
 }
 
-// Matrix Logic Encapsulation
 const MatrixEffect = {
   canvas: null,
   ctx: null,
   columns: [],
   fontSize: 16,
   animationId: null,
-
   init() {
     if (this.canvas) return;
     this.canvas = document.createElement('canvas');
@@ -364,50 +351,32 @@ const MatrixEffect = {
     });
     document.body.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d');
-    
     window.addEventListener('resize', () => this.resize());
     this.resize();
     this.loop();
   },
-
   resize() {
     if (!this.canvas) return;
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.fontSize = Math.max(14, Math.floor(window.innerWidth / 80));
     this.ctx.font = `${this.fontSize}px monospace`;
-    
     const cols = Math.ceil(this.canvas.width / this.fontSize);
-    this.columns = Array(cols).fill(0).map(() => ({
-      y: Math.random() * -100,
-      speed: 1 + Math.random() * 2
-    }));
+    this.columns = Array(cols).fill(0).map(() => ({ y: Math.random() * -100, speed: 1 + Math.random() * 2 }));
   },
-
   loop() {
     if (!this.ctx) return;
-    
-    // Fade out
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
     this.ctx.fillStyle = "#00ff66";
     this.columns.forEach((col, i) => {
       const char = String.fromCharCode(0x30A0 + Math.random() * 96);
-      const x = i * this.fontSize;
-      const y = col.y * this.fontSize;
-      
-      this.ctx.fillText(char, x, y);
-      
-      if (y > this.canvas.height && Math.random() > 0.975) {
-        col.y = 0;
-      }
-      col.y += col.speed * 0.5; // slower speed
+      this.ctx.fillText(char, i * this.fontSize, col.y * this.fontSize);
+      if (col.y * this.fontSize > this.canvas.height && Math.random() > 0.975) col.y = 0;
+      col.y += col.speed * 0.5;
     });
-
     this.animationId = requestAnimationFrame(() => this.loop());
   },
-
   destroy() {
     if (this.animationId) cancelAnimationFrame(this.animationId);
     if (this.canvas) this.canvas.remove();
@@ -419,5 +388,4 @@ const MatrixEffect = {
 function startMatrixEffect() { MatrixEffect.init(); }
 function stopMatrixEffect() { MatrixEffect.destroy(); }
 
-// --- Boot ---
 init();
