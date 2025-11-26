@@ -2,311 +2,66 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" type="image/png" href="favicon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TarotBot : Emoji Oracle</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
-            font-family: 'Georgia', serif;
-            color: #f0f0f0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            text-align: center;
-            max-width: 600px;
-            width: 100%;
-        }
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 30px;
-            color: #ffd700;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            letter-spacing: 2px;
-        }
-        .card-container {
-            perspective: 1000px;
-            margin: 30px 0;
-            display: flex;
-            justify-content: center;
-        }
-        .tarot-card-wrapper {
-            width: 200px;
-            height: 350px;
-            border-radius: 15px;
-            margin: 0 10px;
-            position: relative;
-        }
-        .tarot-card-wrapper.awaiting-reveal::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: 15px;
-            z-index: 2;
-            pointer-events: none;
-            animation: card-glow 2s infinite;
-        }
-        .tarot-card {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.8s;
-            cursor: pointer;
-            pointer-events: auto;
-        }
-        @keyframes card-glow {
-            0% {
-                box-shadow: 0 0 15px 8px rgba(255, 215, 0, 0.3),
-                           0 0 30px 16px rgba(255, 215, 0, 0.2);
-            }
-            50% {
-                box-shadow: 0 0 25px 16px rgba(255, 215, 0, 0.5),
-                           0 0 50px 24px rgba(255, 215, 0, 0.3);
-            }
-            100% {
-                box-shadow: 0 0 15px 8px rgba(255, 215, 0, 0.3),
-                           0 0 30px 16px rgba(255, 215, 0, 0.2);
-            }
-        }
-        .tarot-card.flipped {
-            transform: rotateY(180deg);
-        }
-        .card-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .card-back {
-            background: linear-gradient(45deg, #2c1810, #4a2c17);
-            border: 3px solid #ffd700;
-        }
-        .card-front {
-            background: linear-gradient(135deg, #f8f8ff, #e6e6fa);
-            color: #2c1810;
-            transform: rotateY(180deg);
-            border: 3px solid #ffd700;
-        }
-        .back-pattern {
-            font-size: 4rem;
-            color: #ffd700;
-            opacity: 0.8;
-            position: relative;
-            top: -20px;
-        }
-        .card-symbol {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
-        .card-name {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #2c1810;
-        }
-        .card-meaning {
-            font-size: 0.9rem;
-            text-align: center;
-            line-height: 1.4;
-            color: #4a4a4a;
-        }
-        .button-group {
-            margin-top: 20px;
-        }
-        .draw-button {
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
-            color: #2c1810;
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            font-family: 'Georgia', serif;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 5px 15px rgba(255,215,0,0.3);
-            margin: 20px 10px;
-            font-weight: bold;
-        }
-        .draw-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(255,215,0,0.4);
-        }
-        .draw-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        #interpretation {
-            margin-top: 30px;
-            padding: 25px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,215,0,0.3);
-            opacity: 0;
-            transition: opacity 0.5s, max-height 0.5s ease;
-            max-height: 0;
-            overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-            text-align: left;
-        }
-        #interpretation.show {
-            opacity: 1;
-            max-height: 300px;
-        }
-        #interpretation h2 {
-            color: #ffd700;
-            margin-top: 0;
-            font-size: 1.8rem;
-            margin-bottom: 15px;
-        }
-        #interpretationText {
-            font-size: 1.1rem;
-            line-height: 1.6;
-        }
-        #deckCounter {
-            font-size: 1.1rem;
-            color: #ffd700;
-            margin: 20px 0;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        }
-        #drawnCardsSection {
-            margin-top: 40px;
-            padding: 25px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.2);
-            width: 100%;
-            box-sizing: border-box;
-        }
-        #drawnCardsSection h2 {
-            color: #ffd700;
-            margin-bottom: 15px;
-            font-size: 1.3rem;
-            text-align: center;
-        }
-        #drawnList {
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        .drawn-card-item {
-            display: flex;
-            align-items: center;
-            padding: 8px 12px;
-            margin: 5px 0;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            border-left: 3px solid #ffd700;
-        }
-        .drawn-card-symbol {
-            font-size: 1.5rem;
-            margin-right: 10px;
-            min-width: 30px;
-        }
-        .drawn-card-info {
-            flex: 1;
-        }
-        .drawn-card-name {
-            font-weight: bold;
-            color: #f0f0f0;
-            margin-bottom: 2px;
-        }
-        .drawn-card-meaning {
-            font-size: 0.85rem;
-            color: #cccccc;
-            opacity: 0.8;
-        }
-        .stars-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: -1;
-        }
-        .star {
-            position: absolute;
-            color: #ffd700;
-            opacity: 0.6;
-            animation: twinkle 3s infinite;
-        }
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 0.8; }
-        }
-        .reveal-text {
-            color: #ffd700;
-            font-size: 1rem;
-            position: absolute;
-            top: 65%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            animation: pulse 1.5s infinite;
-            pointer-events: none;
-        }
-        @keyframes pulse {
-            0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-        }
-    </style>
+    <link rel="icon" type="image/png" href="favicon.png">
+    
+    <link rel="stylesheet" href="style.css">
+    
     <link id="deckTheme" rel="stylesheet" href="decks/emoji/style.css">
 </head>
 <body>
     <div class="stars-background" id="stars"></div>
+    
     <div class="container">
-        <h1>✨ TarotBot ✨</h1>
-        <h2 style="color: #ffd700; font-size: 1.3rem; margin-top: -15px; margin-bottom: 20px; letter-spacing: 1px;">One Card at a Time</h2>
-        <select id="deckSelector" style="margin-bottom: 20px;">
-            <option value="emoji">🌙 Emoji Deck</option>
-            <option value="rider-waite">🖼 Rider-Waite Deck</option>
-            <option value="emoji-matrix">🟩 Matrix Emoji Deck</option>
-        </select>
+        <header>
+            <h1>✨ TarotBot ✨</h1>
+            <h2 class="subtitle">One Card at a Time</h2>
+        </header>
+
+        <div class="controls">
+            <select id="deckSelector" aria-label="Choose your tarot deck">
+                <option value="emoji">🌙 Emoji Deck</option>
+                <option value="rider-waite">🖼 Rider-Waite Deck</option>
+                <option value="emoji-matrix">🟩 Matrix Emoji Deck</option>
+            </select>
+        </div>
+
         <div class="card-container">
             <div class="tarot-card-wrapper" id="tarotCardWrapper">
                 <div class="tarot-card" id="tarotCard">
-                    <div class="card-face card-back"><div class="back-pattern">🌙</div></div>
+                    <div class="card-face card-back">
+                        <div class="back-pattern">🌙</div>
+                    </div>
                     <div class="card-face card-front" id="cardFront"></div>
                 </div>
             </div>
         </div>
-        <div class="deck-counter" id="deckCounter">Cards Remaining: 0/0</div>
+
+        <div class="deck-status" id="deckCounter">Cards Remaining: Loading...</div>
+
         <div class="button-group">
-            <button class="draw-button" id="drawButton">Draw Your Card</button>
-            <button class="draw-button" id="shuffleButton" style="background: linear-gradient(45deg, #8a2be2, #9932cc); margin-left: 10px;">Shuffle Deck</button>
+            <button class="action-button draw-btn" id="drawButton">Draw Your Card</button>
+            <button class="action-button shuffle-btn" id="shuffleButton">Shuffle Deck</button>
         </div>
-        <div id="interpretation">
+
+        <div id="interpretation" class="interpretation-panel">
             <h2>Card Interpretation</h2>
             <p id="interpretationText"></p>
         </div>
-        <div id="drawnCardsSection">
+
+        <div id="drawnCardsSection" class="history-panel">
             <h2>Cards Already Drawn</h2>
-            <div id="drawnList"><p style="opacity: 0.7; font-style: italic;">No cards drawn yet</p></div>
+            <div id="drawnList">
+                <p class="empty-state">No cards drawn yet</p>
+            </div>
         </div>
-        <footer style="margin-top: 40px; text-align: center; font-size: 1rem; color: #ffd700; opacity: 0.85;">
-            Made by <strong>DANI FLUX</strong> : <a href="https://patreon.com/daniflux" target="_blank" style="color: #ffd700; text-decoration: underline;">https://patreon.com/daniflux</a>
+
+        <footer>
+            Made by <strong>DANI FLUX</strong> : <a href="https://patreon.com/daniflux" target="_blank">patreon.com/daniflux</a>
         </footer>
     </div>
+
     <script src="js/app.js"></script>
 </body>
 </html>
