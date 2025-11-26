@@ -1,0 +1,377 @@
+/* --- Core Reset & Variables --- */
+:root {
+    --bg-gradient: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+    --text-color: #f0f0f0;
+    --gold: #ffd700;
+    --gold-dim: #cca700;
+    --card-width: 220px;
+    --card-height: 360px;
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    background: var(--bg-gradient);
+    font-family: 'Georgia', serif;
+    color: var(--text-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- Layout Containers --- */
+.container {
+    text-align: center;
+    max-width: 600px;
+    width: 100%;
+    z-index: 1; /* Ensure sits above stars/matrix */
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 5px;
+    color: var(--gold);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    letter-spacing: 2px;
+}
+
+header .subtitle {
+    color: var(--gold);
+    font-size: 1.3rem;
+    margin-top: 0;
+    margin-bottom: 30px;
+    letter-spacing: 1px;
+    font-weight: normal;
+}
+
+.controls {
+    margin-bottom: 20px;
+}
+
+select#deckSelector {
+    padding: 10px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--gold);
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* --- Card Architecture --- */
+.card-container {
+    perspective: 1000px;
+    margin: 30px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.tarot-card-wrapper {
+    width: var(--card-width);
+    height: var(--card-height);
+    border-radius: 15px;
+    margin: 0 10px;
+    position: relative;
+}
+
+/* Glow Effect */
+.tarot-card-wrapper.awaiting-reveal::before {
+    content: '';
+    position: absolute;
+    inset: -5px; /* simplified top/left/right/bottom */
+    border-radius: 20px;
+    z-index: -1;
+    animation: card-glow 2s infinite;
+}
+
+@keyframes card-glow {
+    0% { box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.3); }
+    50% { box-shadow: 0 0 30px 10px rgba(255, 215, 0, 0.6); }
+    100% { box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.3); }
+}
+
+.tarot-card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy flip */
+    cursor: pointer;
+}
+
+.tarot-card.flipped {
+    transform: rotateY(180deg);
+}
+
+/* Faces */
+.card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow: hidden; 
+}
+
+.card-back {
+    background: linear-gradient(45deg, #2c1810, #4a2c17);
+    border: 3px solid var(--gold);
+}
+
+.card-front {
+    background: linear-gradient(135deg, #f8f8ff, #e6e6fa);
+    color: #2c1810;
+    transform: rotateY(180deg);
+    border: 3px solid var(--gold);
+}
+
+/* Card Content */
+.back-pattern {
+    font-size: 4rem;
+    color: var(--gold);
+    opacity: 0.8;
+}
+
+.card-symbol {
+    font-size: 4rem;
+    margin-bottom: 15px;
+}
+
+.card-name {
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #2c1810;
+    text-align: center;
+}
+
+.card-meaning {
+    font-size: 0.9rem;
+    text-align: center;
+    line-height: 1.4;
+    color: #4a4a4a;
+}
+
+.reveal-text {
+    color: var(--gold);
+    font-size: 1rem;
+    position: absolute;
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: pulse 1.5s infinite;
+    pointer-events: none;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+    50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+    100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+}
+
+/* --- Buttons & Inputs --- */
+.deck-status {
+    font-size: 1.1rem;
+    color: var(--gold);
+    margin: 20px 0;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.button-group {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.action-button {
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    font-family: 'Georgia', serif;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.draw-btn {
+    background: linear-gradient(45deg, var(--gold), #ffed4e);
+    color: #2c1810;
+    box-shadow: 0 5px 15px rgba(255,215,0,0.3);
+}
+
+.shuffle-btn {
+    background: linear-gradient(45deg, #8a2be2, #9932cc);
+    color: white;
+    box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
+}
+
+.action-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    filter: grayscale(0.8);
+}
+
+/* --- Panels (Interpretation & History) --- */
+.interpretation-panel, .history-panel {
+    margin-top: 30px;
+    padding: 25px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,215,0,0.2);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.interpretation-panel {
+    opacity: 0;
+    transition: opacity 0.5s, max-height 0.5s ease;
+    max-height: 0;
+    overflow: hidden;
+    text-align: left;
+}
+
+.interpretation-panel.show {
+    opacity: 1;
+    max-height: 500px;
+    padding: 25px; /* ensure padding is applied when open */
+}
+
+.interpretation-panel h2, .history-panel h2 {
+    color: var(--gold);
+    margin-top: 0;
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255,215,0,0.3);
+    padding-bottom: 10px;
+}
+
+#interpretationText {
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+/* History List */
+#drawnList {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Custom Scrollbar */
+#drawnList::-webkit-scrollbar {
+    width: 8px;
+}
+#drawnList::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.3);
+    border-radius: 4px;
+}
+
+.drawn-card-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    border-left: 3px solid var(--gold);
+}
+
+.drawn-card-symbol {
+    font-size: 1.5rem;
+    margin-right: 15px;
+    min-width: 40px;
+    text-align: center;
+}
+
+.drawn-card-name {
+    font-weight: bold;
+    color: #f0f0f0;
+    font-size: 1.1rem;
+}
+
+.drawn-card-meaning {
+    font-size: 0.9rem;
+    color: #cccccc;
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+.empty-state {
+    opacity: 0.7; 
+    font-style: italic; 
+    text-align: center;
+}
+
+/* --- Footer --- */
+footer {
+    margin-top: 50px;
+    font-size: 0.9rem;
+    color: var(--gold);
+    opacity: 0.8;
+}
+
+footer a {
+    color: var(--gold);
+    text-decoration: underline;
+}
+
+/* --- Star Background --- */
+.stars-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -2;
+}
+
+.star {
+    position: absolute;
+    color: var(--gold);
+    opacity: 0.6;
+    animation: twinkle 3s infinite;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.2); }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+    header h1 { font-size: 2rem; }
+    .tarot-card-wrapper {
+        width: 180px;
+        height: 300px;
+    }
+    .action-button {
+        width: 100%; /* stacked buttons on mobile */
+        padding: 12px;
+    }
+}
