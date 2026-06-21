@@ -1,5 +1,5 @@
 // Archived legacy TarotBot application.
-// js/app.js â€” TarotBot: Emoji Oracle (Fixed Matrix Speed)
+// js/app.js — TarotBot: Emoji Oracle (Fixed Matrix Speed)
 
 // --- DOM References ---
 const drawButton = document.getElementById("drawButton");
@@ -99,7 +99,7 @@ function drawCard() {
     displayCard(currentCard);
 
     // Reset Back with "Click to Reveal"
-    cardBack.innerHTML = '<div class="back-pattern">ðŸŒ™</div>';
+    cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
     if (currentCard) {
       const revealTextDiv = document.createElement('div');
       revealTextDiv.className = 'reveal-text';
@@ -156,7 +156,7 @@ function shuffleDeck() {
 
     // Clean faces
     const cardBack = tarotCardElement.querySelector(".card-back");
-    if (cardBack) cardBack.innerHTML = '<div class="back-pattern">ðŸŒ™</div>';
+    if (cardBack) cardBack.innerHTML = '<div class="back-pattern">🌙</div>';
     document.getElementById("cardFront").innerHTML = "";
     document.getElementById("interpretation").classList.remove("show");
     document.getElementById("interpretationText").textContent = "";
@@ -180,7 +180,7 @@ function displayCard(card) {
       '<div class="card-name">' + card.name + '</div>';
   } else {
     cardFront.innerHTML =
-      '<div class="card-symbol">' + (card.symbol || 'ðŸ”®') + '</div>' +
+      '<div class="card-symbol">' + (card.symbol || '🔮') + '</div>' +
       '<div class="card-name">' + card.name + '</div>' +
       '<div class="card-meaning">' + (card.meaning || '') + '</div>';
   }
@@ -198,7 +198,7 @@ function updateDrawnCardsList() {
   }
   drawnList.innerHTML = drawnCards.map(card => `
     <div class="drawn-card-item">
-      <div class="drawn-card-symbol">${card.symbol || 'ðŸ”®'}</div>
+      <div class="drawn-card-symbol">${card.symbol || '🔮'}</div>
       <div class="drawn-card-info">
         <div class="drawn-card-name">${card.name}</div>
         <div class="drawn-card-meaning">${card.meaning}</div>
@@ -239,7 +239,7 @@ function loadStateFromLocalStorage() {
       if (readyToReveal) {
         // Was waiting to reveal
         tarotCardWrapper.classList.add("awaiting-reveal");
-        cardBack.innerHTML = '<div class="back-pattern">ðŸŒ™</div><div class="reveal-text">Click to reveal</div>';
+        cardBack.innerHTML = '<div class="back-pattern">🌙</div><div class="reveal-text">Click to reveal</div>';
         drawButton.textContent = "Reveal Card Above";
         drawButton.disabled = true;
         unbindRevealHandler();
@@ -271,7 +271,7 @@ function loadDeck(deckName) {
   cardElement.classList.remove("flipped");
   wrapper.classList.remove("awaiting-reveal");
   document.getElementById("cardFront").innerHTML = "";
-  document.querySelector(".card-back").innerHTML = '<div class="back-pattern">ðŸŒ™</div>';
+  document.querySelector(".card-back").innerHTML = '<div class="back-pattern">🌙</div>';
   document.getElementById("interpretation").classList.remove("show");
   
   drawButton.textContent = "Draw Your Card";
@@ -336,7 +336,7 @@ function createStars() {
   for(let i=0; i<50; i++) {
     const d = document.createElement('div');
     d.className = 'star';
-    d.innerHTML = 'âœ¦';
+    d.innerHTML = '✦';
     d.style.left = Math.random()*100+'%';
     d.style.top = Math.random()*100+'%';
     d.style.animationDelay = Math.random()*3+'s';
