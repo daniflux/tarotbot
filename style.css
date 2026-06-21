@@ -35,6 +35,55 @@ body[data-deck="emoji-matrix"] {
   font-family: "Courier New", Consolas, monospace;
 }
 
+body[data-deck="rider-waite"] {
+  --ink: #fff3dc;
+  --muted: #d2ac9f;
+  --gold: #d9ae59;
+  --gold-bright: #ffe0a0;
+  --panel: rgba(43, 4, 13, 0.86);
+  --line: rgba(225, 176, 86, 0.34);
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(175, 44, 58, .8), transparent 48rem),
+    radial-gradient(ellipse at 18% 55%, rgba(120, 10, 28, .55), transparent 34rem),
+    radial-gradient(ellipse at 82% 65%, rgba(92, 5, 20, .6), transparent 36rem),
+    linear-gradient(135deg, #26040b, #530916 48%, #240309);
+}
+
+body[data-deck="rider-waite"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .3;
+  background:
+    repeating-linear-gradient(96deg, transparent 0 3px, rgba(255,255,255,.035) 4px, transparent 6px),
+    repeating-linear-gradient(84deg, transparent 0 7px, rgba(0,0,0,.08) 8px, transparent 11px);
+  mix-blend-mode: soft-light;
+}
+
+.emoji-stars {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+body[data-deck="emoji"] .emoji-stars { display: block; }
+.emoji-star {
+  position: absolute;
+  opacity: .2;
+  color: var(--gold-bright);
+  filter: drop-shadow(0 0 6px rgba(255,225,150,.7));
+  animation: emoji-twinkle var(--twinkle-speed, 3s) ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+@keyframes emoji-twinkle {
+  0%, 100% { opacity: .12; transform: scale(.72) rotate(-5deg); }
+  50% { opacity: .9; transform: scale(1.2) rotate(7deg); }
+}
+
 .matrix-rain {
   display: none;
   position: fixed;
@@ -59,6 +108,8 @@ body[data-deck="emoji-matrix"]::after {
   width: min(100% - 28px, 720px);
   margin: 0 auto;
   padding: 42px 0 64px;
+  position: relative;
+  z-index: 1;
 }
 
 body[data-deck="emoji-matrix"] .app-shell { text-shadow: 0 0 8px rgba(0,255,65,.55); }
@@ -103,6 +154,12 @@ body[data-deck="emoji-matrix"] .meaning-panel {
   backdrop-filter: none;
 }
 
+body[data-deck="rider-waite"] .toolbar,
+body[data-deck="rider-waite"] .history-panel,
+body[data-deck="rider-waite"] .meaning-panel {
+  box-shadow: 0 16px 50px rgba(15,0,3,.45), inset 0 1px rgba(255,220,170,.05);
+}
+
 body[data-deck="emoji-matrix"] select,
 body[data-deck="emoji-matrix"] .switch-row,
 body[data-deck="emoji-matrix"] .button,
@@ -117,7 +174,7 @@ body[data-deck="emoji-matrix"] .button-secondary { border-color: #00ff41; color:
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
   gap: 10px;
   align-items: end;
   margin: 28px 0 20px;
@@ -191,6 +248,14 @@ select {
     repeating-radial-gradient(circle at center, transparent 0 17px, rgba(232,197,109,.13) 18px 19px),
     linear-gradient(145deg, #372348, #171126);
 }
+body[data-deck="rider-waite"] .card-back {
+  background:
+    radial-gradient(circle at center, rgba(255,213,137,.16) 0 2px, transparent 3px),
+    repeating-conic-gradient(from 45deg at 50% 50%, rgba(224,174,91,.12) 0 8deg, transparent 8deg 22deg),
+    linear-gradient(145deg, #6b0d1e, #25030b);
+  background-size: 24px 24px, 100% 100%, 100% 100%;
+  box-shadow: 0 24px 70px rgba(15,0,3,.7), inset 0 0 35px rgba(0,0,0,.35);
+}
 .moon { color: var(--gold-bright); font-size: 6rem; line-height: 1; }
 .card-prompt { margin-top: 24px; color: var(--gold-bright); font: 700 0.72rem/1.2 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
 .card-front { padding: 14px; color: #241b2b; background: #f2ead7; transform: rotateY(180deg); }
@@ -263,10 +328,55 @@ body[data-deck="emoji-matrix"] .orientation { color: #00ff41; font-family: "Cour
 .shuffle-dialog::backdrop { background: rgba(5,3,8,.72); backdrop-filter: blur(4px); }
 .shuffle-dialog p { color: var(--muted); line-height: 1.5; }
 
+body.focus-mode { overflow-x: hidden; }
+body.focus-mode .app-header,
+body.focus-mode .history-panel,
+body.focus-mode .meaning-panel,
+body.focus-mode .toolbar > :not(.focus-toggle) { display: none !important; }
+body.focus-mode .app-shell {
+  width: 100%;
+  min-height: 100dvh;
+  padding: 10px;
+  display: grid;
+  place-items: center;
+}
+body.focus-mode .toolbar {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  right: 8px;
+  z-index: 100;
+  display: block;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body.focus-mode .focus-toggle {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--gold-bright);
+  background: rgba(10,7,15,.86);
+  backdrop-filter: blur(10px);
+}
+body.focus-mode .deck-area { width: 100%; }
+body.focus-mode .card-button { --card-w: min(76vw, 300px); margin-top: 0; }
+body.focus-mode .deck-status { margin-bottom: 8px; }
+body.focus-mode .actions { gap: 7px; }
+body.focus-mode .button { min-height: 42px; padding: 0 16px; }
+
 @media (max-width: 620px) {
   .app-shell { padding-top: 28px; }
   .toolbar { grid-template-columns: 1fr 1fr; }
   .field { grid-column: 1 / -1; }
+  body.focus-mode .card-button {
+    --card-w: min(82vw, calc((100dvh - 150px) / 1.58));
+  }
+  body.focus-mode .card-prompt { margin-top: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
