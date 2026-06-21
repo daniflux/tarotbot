@@ -7,6 +7,7 @@
     deckSelector: document.getElementById("deckSelector"),
     readerMode: document.getElementById("readerMode"),
     reversals: document.getElementById("reversals"),
+    focusMode: document.getElementById("focusMode"),
     cardButton: document.getElementById("cardButton"),
     card: document.getElementById("card"),
     cardFront: document.getElementById("cardFront"),
@@ -25,6 +26,7 @@
   elements.appEyebrow = document.getElementById("appEyebrow");
   elements.appTagline = document.getElementById("appTagline");
   elements.matrixRain = document.getElementById("matrixRain");
+  elements.emojiStars = document.getElementById("emojiStars");
 
   let deck = [];
   let order = [];
@@ -75,6 +77,7 @@
     }));
     localStorage.setItem("tarotbot:lastDeck", currentDeck);
     localStorage.setItem("tarotbot:readerMode", String(elements.readerMode.checked));
+    localStorage.setItem("tarotbot:focusMode", String(elements.focusMode.checked));
   }
 
   function restore() {
@@ -228,10 +231,12 @@
 
   function render() {
     document.body.dataset.deck = currentDeck;
+    document.body.classList.toggle("focus-mode", elements.focusMode.checked);
     const matrixMode = currentDeck === "emoji-matrix";
     elements.appEyebrow.textContent = matrixMode ? "ARCANA // TERMINAL" : "Digital tarot deck";
     elements.appTagline.textContent = matrixMode ? "78-node entropy protocol :: no duplicate returns" : "Shuffle once. Draw without repeats.";
     MatrixRain.setActive(matrixMode);
+    createEmojiStars();
     const revealedEntry = !pending && drawn.length ? drawn[drawn.length - 1] : null;
     renderCard(pending || revealedEntry, Boolean(revealedEntry));
     renderHistory();
@@ -372,6 +377,22 @@
     }
   };
 
+  function createEmojiStars() {
+    if (elements.emojiStars.childElementCount) return;
+    const symbols = ["✦", "✨", "⭐", "🌟"];
+    for (let index = 0; index < 42; index += 1) {
+      const star = document.createElement("span");
+      star.className = "emoji-star";
+      star.textContent = symbols[index % symbols.length];
+      star.style.left = `${3 + Math.random() * 94}%`;
+      star.style.top = `${2 + Math.random() * 94}%`;
+      star.style.fontSize = `${.55 + Math.random() * .8}rem`;
+      star.style.setProperty("--twinkle-speed", `${2.2 + Math.random() * 3.8}s`);
+      star.style.setProperty("--twinkle-delay", `${-Math.random() * 5}s`);
+      elements.emojiStars.appendChild(star);
+    }
+  }
+
   window.addEventListener("resize", () => {
     if (MatrixRain.active) MatrixRain.resize();
   });
@@ -380,6 +401,7 @@
   elements.nextButton.addEventListener("click", drawNext);
   elements.deckSelector.addEventListener("change", event => loadDeck(event.target.value));
   elements.readerMode.addEventListener("change", () => { save(); renderMeaning(); });
+  elements.focusMode.addEventListener("change", () => { save(); render(); });
   elements.reversals.addEventListener("change", () => {
     if (drawn.length || pending) {
       requestedReversalSetting = elements.reversals.checked;
@@ -410,6 +432,7 @@
 
   const storedReaderMode = localStorage.getItem("tarotbot:readerMode");
   if (storedReaderMode !== null) elements.readerMode.checked = storedReaderMode === "true";
+  elements.focusMode.checked = localStorage.getItem("tarotbot:focusMode") === "true";
   loadDeck(currentDeck);
 })();
 
