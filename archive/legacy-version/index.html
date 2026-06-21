@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!-- Archived legacy version. Shared deck assets live at ../../decks/. -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TarotBot : Emoji Oracle</title>
+    <link rel="icon" type="image/png" href="../../favicon.png">
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <link id="deckTheme" rel="stylesheet" href="../../decks/emoji/style.css">
+</head>
+<body>
+    <div class="stars-background" id="stars"></div>
+    
+    <div class="container">
+        <header>
+            <h1>âœ¨ TarotBot âœ¨</h1>
+            <h2 class="subtitle">One Card at a Time</h2>
+        </header>
+
+        <div class="controls">
+            <select id="deckSelector" aria-label="Choose your tarot deck">
+                <option value="emoji">ðŸŒ™ Emoji Deck</option>
+                <option value="rider-waite">ðŸ–¼ Rider-Waite Deck</option>
+                <option value="emoji-matrix">ðŸŸ© Matrix Emoji Deck</option>
+            </select>
+        </div>
+
+        <div class="card-container">
+            <div class="tarot-card-wrapper" id="tarotCardWrapper">
+                <div class="tarot-card" id="tarotCard">
+                    <div class="card-face card-back">
+                        <div class="back-pattern">ðŸŒ™</div>
+                    </div>
+                    <div class="card-face card-front" id="cardFront"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="deck-status" id="deckCounter">Cards Remaining: Loading...</div>
+
+        <div class="button-group">
+            <button class="action-button draw-btn" id="drawButton">Draw Your Card</button>
+            <button class="action-button shuffle-btn" id="shuffleButton">Shuffle Deck</button>
+        </div>
+
+        <div id="interpretation" class="interpretation-panel">
+            <h2>Card Interpretation</h2>
+            <p id="interpretationText"></p>
+        </div>
+
+        <div id="drawnCardsSection" class="history-panel">
+            <h2>Cards Already Drawn</h2>
+            <div id="drawnList">
+                <p class="empty-state">No cards drawn yet</p>
+            </div>
+        </div>
+
+        <footer>
+            Made by <strong>DANI FLUX</strong> : <a href="https://patreon.com/daniflux" target="_blank">patreon.com/daniflux</a>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
+

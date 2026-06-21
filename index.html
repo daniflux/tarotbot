@@ -1,67 +1,95 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TarotBot : Emoji Oracle</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    
-    <link rel="stylesheet" href="style.css">
-    
-    <link id="deckTheme" rel="stylesheet" href="decks/emoji/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171126">
+  <title>TarotBot Ã¢â‚¬â€ Reader Deck</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="stars-background" id="stars"></div>
-    
-    <div class="container">
-        <header>
-            <h1>✨ TarotBot ✨</h1>
-            <h2 class="subtitle">One Card at a Time</h2>
-        </header>
+  <canvas id="matrixRain" class="matrix-rain" aria-hidden="true"></canvas>
+  <main class="app-shell">
+    <header class="app-header">
+      <p class="eyebrow" id="appEyebrow">Digital tarot deck</p>
+      <h1>TarotBot</h1>
+      <p class="tagline" id="appTagline">Shuffle once. Draw without repeats.</p>
+    </header>
 
-        <div class="controls">
-            <select id="deckSelector" aria-label="Choose your tarot deck">
-                <option value="emoji">🌙 Emoji Deck</option>
-                <option value="rider-waite">🖼 Rider-Waite Deck</option>
-                <option value="emoji-matrix">🟩 Matrix Emoji Deck</option>
-            </select>
+    <section class="toolbar" aria-label="Deck settings">
+      <label class="field">
+        <span>Deck</span>
+        <select id="deckSelector">
+          <option value="emoji">Emoji</option>
+          <option value="rider-waite">RiderÃ¢â‚¬â€œWaite</option>
+          <option value="emoji-matrix">Matrix Emoji</option>
+        </select>
+      </label>
+
+      <label class="switch-row">
+        <input id="readerMode" type="checkbox" checked>
+        <span>Reader mode</span>
+      </label>
+
+      <label class="switch-row">
+        <input id="reversals" type="checkbox">
+        <span>Include reversals</span>
+      </label>
+    </section>
+
+    <section class="deck-area" aria-labelledby="deckStatus">
+      <button id="cardButton" class="card-button" type="button" disabled aria-label="Draw a card">
+        <span class="card" id="card">
+          <span class="card-face card-back" aria-hidden="true">
+            <span class="moon">Ã¢ËœÂ¾</span>
+            <span class="card-prompt" id="cardPrompt">Loading deckÃ¢â‚¬Â¦</span>
+          </span>
+          <span class="card-face card-front" id="cardFront"></span>
+        </span>
+      </button>
+
+      <p id="deckStatus" class="deck-status" role="status" aria-live="polite">Loading deckÃ¢â‚¬Â¦</p>
+
+      <div class="actions">
+        <button id="nextButton" class="button button-primary" type="button" disabled>Draw card</button>
+        <button id="shuffleButton" class="button button-secondary" type="button" disabled>Return &amp; shuffle</button>
+      </div>
+    </section>
+
+    <section id="meaningPanel" class="meaning-panel" hidden>
+      <h2 id="meaningTitle">Card notes</h2>
+      <p id="meaningKeywords" class="keywords"></p>
+      <p id="meaningText"></p>
+    </section>
+
+    <section class="history-panel" aria-labelledby="historyTitle">
+      <div class="history-heading">
+        <div>
+          <p class="eyebrow">This session</p>
+          <h2 id="historyTitle">Drawn cards</h2>
         </div>
+        <button id="historyToggle" class="text-button" type="button" aria-expanded="true" aria-controls="historyList">Hide</button>
+      </div>
+      <ol id="historyList" class="history-list">
+        <li class="empty-history">No cards drawn yet.</li>
+      </ol>
+    </section>
+  </main>
 
-        <div class="card-container">
-            <div class="tarot-card-wrapper" id="tarotCardWrapper">
-                <div class="tarot-card" id="tarotCard">
-                    <div class="card-face card-back">
-                        <div class="back-pattern">🌙</div>
-                    </div>
-                    <div class="card-face card-front" id="cardFront"></div>
-                </div>
-            </div>
-        </div>
+  <dialog id="shuffleDialog" class="shuffle-dialog">
+    <form method="dialog">
+      <h2>Return all cards?</h2>
+      <p>This clears the current session and creates a fresh shuffled deck.</p>
+      <div class="dialog-actions">
+        <button class="button button-secondary" value="cancel">Cancel</button>
+        <button class="button button-primary" value="confirm">Return &amp; shuffle</button>
+      </div>
+    </form>
+  </dialog>
 
-        <div class="deck-status" id="deckCounter">Cards Remaining: Loading...</div>
-
-        <div class="button-group">
-            <button class="action-button draw-btn" id="drawButton">Draw Your Card</button>
-            <button class="action-button shuffle-btn" id="shuffleButton">Shuffle Deck</button>
-        </div>
-
-        <div id="interpretation" class="interpretation-panel">
-            <h2>Card Interpretation</h2>
-            <p id="interpretationText"></p>
-        </div>
-
-        <div id="drawnCardsSection" class="history-panel">
-            <h2>Cards Already Drawn</h2>
-            <div id="drawnList">
-                <p class="empty-state">No cards drawn yet</p>
-            </div>
-        </div>
-
-        <footer>
-            Made by <strong>DANI FLUX</strong> : <a href="https://patreon.com/daniflux" target="_blank">patreon.com/daniflux</a>
-        </footer>
-    </div>
-
-    <script src="js/app.js"></script>
+  <script src="reversed-interpretations.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
+
