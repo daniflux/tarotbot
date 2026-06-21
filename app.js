@@ -33,6 +33,7 @@
   let drawn = [];
   let pending = null;
   let requestedReversalSetting = null;
+  let isTransitioning = false;
   let currentDeck = localStorage.getItem("tarotbot:lastDeck") || "emoji";
   let loadToken = 0;
 
@@ -267,14 +268,44 @@
   }
 
   function drawNext() {
-    if (pending || !order.length) return;
+    if (pending || !order.length || isTransitioning) return;
+    const nextCard = order.shift();
+    const wasRevealed = elements.card.classList.contains("is-revealed");
+
+    if (!wasRevealed) {
+      pending = nextCard;
+      save();
+      render();
+      return;
+    }
+
+    // Keep the old face mounted until it has rotated fully behind the card back.
+    // Swapping faces during this motion briefly exposes the upcoming card.
+    isTransitioning = true;
     elements.card.classList.remove("is-revealed");
-    pending = order.shift();
-    save();
-    render();
+    elements.cardButton.disabled = true;
+    elements.nextButton.disabled = true;
+    elements.shuffleButton.disabled = true;
+    elements.deckSelector.disabled = true;
+    elements.readerMode.disabled = true;
+    elements.reversals.disabled = true;
+    elements.focusMode.disabled = true;
+
+    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 680;
+    window.setTimeout(() => {
+      pending = nextCard;
+      isTransitioning = false;
+      save();
+      render();
+      elements.deckSelector.disabled = false;
+      elements.readerMode.disabled = false;
+      elements.reversals.disabled = false;
+      elements.focusMode.disabled = false;
+    }, delay);
   }
 
   function reveal() {
+    if (isTransitioning) return;
     if (!pending) {
       drawNext();
       return;
