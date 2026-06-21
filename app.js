@@ -151,7 +151,7 @@
     } else {
       const symbol = document.createElement("span");
       symbol.className = "card-symbol";
-      symbol.textContent = card.symbol || "Ã¢Å“Â¦";
+      symbol.textContent = card.symbol || "✦";
       content.appendChild(symbol);
     }
     const name = document.createElement("span");
@@ -174,7 +174,7 @@
     elements.meaningPanel.hidden = !shouldShow;
     if (!shouldShow) return;
     const reversedNotes = latest.reversed ? window.reversedCardData?.[card.name] : null;
-    elements.meaningTitle.textContent = `${card.name}${latest.reversed ? " Ã¢â‚¬â€ Reversed" : ""}`;
+    elements.meaningTitle.textContent = `${card.name}${latest.reversed ? " — Reversed" : ""}`;
     elements.meaningKeywords.textContent = reversedNotes?.[0] || card.meaning || "";
     elements.meaningText.textContent = reversedNotes?.[1] || card.interpretation || "";
   }
@@ -189,7 +189,7 @@
       image.alt = "";
       thumb.appendChild(image);
     } else {
-      thumb.textContent = card.symbol || "Ã¢Å“Â¦";
+      thumb.textContent = card.symbol || "✦";
     }
     return thumb;
   }
@@ -294,7 +294,7 @@
     elements.deckSelector.disabled = true;
     elements.nextButton.disabled = true;
     elements.cardButton.disabled = true;
-    elements.deckStatus.textContent = "Loading deckÃ¢â‚¬Â¦";
+    elements.deckStatus.textContent = "Loading deck…";
     document.querySelectorAll("script[data-reader-deck]").forEach(script => script.remove());
     try { delete window.deckData; } catch { window.deckData = undefined; }
 
@@ -352,7 +352,7 @@
       ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
       ctx.font = "15px monospace";
       this.columns.forEach((position, index) => {
-        const glyphs = "01{}[]<>/\\ÃŽÂ»Ã¢â‚¬Â Ã¢ËœÂ¿Ã¢â„¢â€žÃ¢â„¢Æ’Ã¢â„¢â€ Ã¡Å¡Â Ã¡Å¡Â±Ã¡Å¡Â¢Ã¡Å¡Â¾Ã¡â€ºâ€“Ã¡â€ºâ€¹Ã¡â€ºÂÃ¡â€ºÅ¸";
+        const glyphs = "01{}[]<>/\\λ†☿♄♃♆ᚠᚱᚢᚾᛖᛋᛏᛟ";
         const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
         ctx.fillStyle = Math.random() > .96 ? "#c9ffd5" : "#00c832";
         ctx.fillText(glyph, index * 15, position * 15);
@@ -412,6 +412,4 @@
   if (storedReaderMode !== null) elements.readerMode.checked = storedReaderMode === "true";
   loadDeck(currentDeck);
 })();
-
-
 
