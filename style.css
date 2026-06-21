@@ -215,8 +215,12 @@ body[data-deck="emoji-matrix"] .card-back {
     #000;
   background-size: 23px 23px;
 }
-body[data-deck="emoji-matrix"] .moon { font-family: monospace; font-size: 0; }
-body[data-deck="emoji-matrix"] .moon::after { content: "[0xXV]"; font-size: 3.2rem; text-shadow: 0 0 12px #00ff41; }
+body[data-deck="emoji-matrix"] .moon {
+  color: #00ff41;
+  font-family: Georgia, serif;
+  font-size: 6rem;
+  text-shadow: 0 0 8px #00ff41, 0 0 24px rgba(0,255,65,.85);
+}
 body[data-deck="emoji-matrix"] .card-front { color: #00ff41; background: #000; }
 body[data-deck="emoji-matrix"] .card-image {
   padding: 5px;
