@@ -9,19 +9,19 @@ This is separate from the older `esp32/` ESP32-C6-LCD-1.47 build. The watch has 
 - Boots straight into TarotBot.
 - Uses the Arcana Terminal look from the web app's `emoji-matrix` theme, with black AMOLED background, green terminal text, and code-rain accents.
 - Draws through the full 78-card deck without repeats.
-- Shows large green/black Rider-Waite card line art generated from the local `decks/rider-waite/images` PNGs.
+- Shows large green/black Rider-Waite card ink masks generated from the local `decks/rider-waite/images` PNGs. The watch keeps near-black linework only, then recolors that ink green on a black background.
 - Saves the remaining deck in flash so power loss does not reshuffle unless you hold to reshuffle.
 - Taps advance through draw, reveal, reading, and next card. If interpretations are disabled, tapping after a reveal skips straight to the next card.
 - Holding the screen or BOOT button reshuffles the full deck.
-- Swipe horizontally from TarotBot to open the Matrix tools hub; tap the gear/settings tile for settings; swipe again or use the BOOT button to back out.
-- Settings lets you turn interpretations on/off and set the clock manually with touch steppers.
-- After 60 seconds idle, the AMOLED display dims into a brighter screen-wide code-rain clock with large stacked 12-hour time digits. The first tap wakes only; it does not accidentally advance the reading.
+- Swipe horizontally from TarotBot to open the Matrix tools hub; tap the large gear/settings tile for settings; swipe again or use the BOOT button to back out.
+- Settings lets you turn interpretations on/off, set hour/minute/month/day/year manually, toggle AM/PM, and see the Wi-Fi setup network and URL.
+- After 60 seconds idle, the AMOLED display dims into a brighter screen-wide code-rain clock with very large stacked 12-hour time digits over the falling rain. The first tap wakes only; it does not accidentally advance the reading.
 - Uses Wi-Fi NTP to sync time and stores the result in the onboard PCF85063 RTC.
 - If Wi-Fi is unavailable, it falls back to RTC time. If no valid time is known, it displays `TIME UNSYNCED`.
 
 ## Watch Controls
 
-- Tap: advance TarotBot, open the highlighted tools/settings area, or adjust a settings row.
+- Tap: advance TarotBot, open the highlighted tools/settings area, or adjust a settings row. In Settings, the left side of a row subtracts and the right side adds.
 - Hold: reshuffle the TarotBot deck. Release after holding is ignored briefly so it does not double-count as a tap.
 - Swipe horizontally from TarotBot: open tools hub.
 - Swipe horizontally from tools/settings: go back one screen.
@@ -53,23 +53,25 @@ The first build can be slow because ESP-IDF downloads the Waveshare board suppor
 
 ## Regenerate Card Art
 
-The watch firmware embeds a small 1-bit mask for each Rider-Waite card. To regenerate those masks after changing the source deck images:
+The watch firmware embeds a 210x344 1-bit mask for each Rider-Waite card. To regenerate those masks after changing the source deck images:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File esp32-watch\tools\generate_card_art.ps1
 ```
 
-The script reads `decks/rider-waite/images`, keeps the dark linework, and lets the firmware recolor it green on black.
+The script reads `decks/rider-waite/images`, keeps near-black linework/paper ink, and lets the firmware recolor those pixels green on black. If a card looks like a green slab, rerun this generator after checking the ink threshold in `tools/generate_card_art.ps1`.
 
 ## Flash Over USB
 
 Windows currently detected the watch as `COM7` on this PC.
 
 ```powershell
-idf.py -p COM7 flash monitor
+idf.py -p COM7 flash
 ```
 
 If the port changes, check Device Manager under **Ports (COM & LPT)** and replace `COM7`.
+
+Use `idf.py -p COM7 monitor` only when you need boot logs. Close the monitor before flashing again so it does not keep the serial port busy.
 
 If flashing hangs or says it is waiting for sync:
 

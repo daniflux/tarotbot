@@ -7,8 +7,8 @@ $repoRoot = Split-Path -Parent $watchRoot
 $sourceDir = Join-Path $repoRoot "decks\rider-waite\images"
 $outPath = Join-Path $watchRoot "main\card_art_generated.h"
 
-$cardWidth = 204
-$cardHeight = 336
+$cardWidth = 210
+$cardHeight = 344
 $bitsPerCard = $cardWidth * $cardHeight
 $bytesPerCard = [Math]::Ceiling($bitsPerCard / 8)
 
@@ -113,8 +113,12 @@ function Convert-ToMask([System.Drawing.Bitmap]$src) {
   for ($y = 0; $y -lt $cardHeight; $y++) {
     for ($x = 0; $x -lt $cardWidth; $x++) {
       $p = $dst.GetPixel($x, $y)
-      $brightness = ($p.R * 0.299) + ($p.G * 0.587) + ($p.B * 0.114)
-      if ($p.A -gt 32 -and $brightness -lt 165) {
+      $max = [Math]::Max($p.R, [Math]::Max($p.G, $p.B))
+      $min = [Math]::Min($p.R, [Math]::Min($p.G, $p.B))
+      $luma = (0.299 * $p.R) + (0.587 * $p.G) + (0.114 * $p.B)
+      $deepInk = $max -lt 58
+      $neutralInk = $luma -lt 92 -and ($max - $min) -lt 46
+      if ($p.A -gt 32 -and ($deepInk -or $neutralInk)) {
         $bit = ($y * $cardWidth) + $x
         $mask[[Math]::Floor($bit / 8)] = $mask[[Math]::Floor($bit / 8)] -bor (1 -shl ($bit % 8))
       }
