@@ -14,6 +14,7 @@
 #include "driver/i2c_master.h"
 #include "esp_check.h"
 #include "esp_event.h"
+#include "esp_heap_caps.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -28,6 +29,7 @@
 #include "nvs_flash.h"
 
 #include "cards_generated.h"
+#include "card_art_generated.h"
 #include "lvgl.h"
 
 namespace {
@@ -43,9 +45,12 @@ constexpr uint32_t IDLE_SAVER_MS = 60000;
 constexpr uint32_t LONG_PRESS_MS = 1500;
 constexpr uint32_t TOUCH_BLOCK_MS = 650;
 constexpr int ACTIVE_BRIGHTNESS = 35;
-constexpr int SAVER_BRIGHTNESS = 8;
+constexpr int SAVER_BRIGHTNESS = 12;
 constexpr uint8_t DECK_BYTES = (CARD_COUNT + 7) / 8;
 constexpr uint8_t RTC_ADDR = 0x51;
+constexpr int WATCH_W = 410;
+constexpr int WATCH_H = 502;
+constexpr int DIM_SEGMENTS = 7;
 
 const lv_color_t MATRIX = lv_color_hex(0x00ff41);
 const lv_color_t MATRIX_SOFT = lv_color_hex(0x35a953);
@@ -55,7 +60,7 @@ const lv_color_t PANEL = lv_color_hex(0x031107);
 
 enum class ScreenState { Welcome, CardBack, Revealed, Reading, Empty };
 enum class AppView { Tarot, Tools, Settings };
-enum class SettingField { Hour, Minute, Month, Day, Year };
+enum class SettingField { Hour, Minute, AmPm, Month, Day, Year };
 enum class TimeState { Unsynced, Rtc, Ntp };
 
 struct RtcDateTime {
@@ -80,12 +85,12 @@ struct Ui {
   lv_obj_t *sigil_top = nullptr;
   lv_obj_t *sigil_main = nullptr;
   lv_obj_t *sigil_bottom = nullptr;
+  lv_obj_t *card_art = nullptr;
   lv_obj_t *body = nullptr;
   lv_obj_t *footer = nullptr;
-  lv_obj_t *dim_hour = nullptr;
-  lv_obj_t *dim_minute = nullptr;
   lv_obj_t *touch_layer = nullptr;
-  std::array<lv_obj_t *, 14> rain{};
+  std::array<lv_obj_t *, 28> rain{};
+  std::array<std::array<lv_obj_t *, DIM_SEGMENTS>, 4> dim_digits{};
 };
 
 Ui ui;
@@ -108,11 +113,16 @@ uint64_t button_down_ms = 0;
 bool button_was_down = false;
 bool button_long_handled = false;
 bool touch_long_handled = false;
+bool touch_press_valid = false;
+lv_point_t touch_press_point {};
+uint64_t touch_press_ms = 0;
 bool wifi_connected = false;
 bool setup_portal_running = false;
 bool sntp_started = false;
 EventGroupHandle_t wifi_events = nullptr;
 i2c_master_dev_handle_t rtc_dev = nullptr;
+uint16_t *card_art_pixels = nullptr;
+lv_image_dsc_t card_art_img {};
 
 constexpr EventBits_t WIFI_CONNECTED_BIT = BIT0;
 constexpr EventBits_t WIFI_FAILED_BIT = BIT1;
@@ -130,6 +140,7 @@ uint64_t now_ms() {
 }
 
 time_t utc_time_from_tm(struct tm *tm);
+std::string dim_time_text(bool hour);
 
 bool nvs_get_string(const char *ns, const char *key, std::string &out) {
   nvs_handle_t handle = 0;
@@ -376,8 +387,10 @@ std::string time_text() {
   struct tm local {};
   localtime_r(&now, &local);
   char buffer[16];
-  strftime(buffer, sizeof(buffer), "%H:%M", &local);
-  return buffer;
+  strftime(buffer, sizeof(buffer), "%I:%M %p", &local);
+  std::string text = buffer;
+  if (!text.empty() && text[0] == '0') text.erase(0, 1);
+  return text;
 }
 
 std::string date_text() {
@@ -440,6 +453,9 @@ void adjust_manual_time(SettingField field, int delta) {
     case SettingField::Minute:
       manual_time.minute += delta;
       break;
+    case SettingField::AmPm:
+      manual_time.hour = (manual_time.hour + 12) % 24;
+      break;
     case SettingField::Month:
       manual_time.month += delta;
       break;
@@ -484,15 +500,23 @@ std::string dim_time_text(bool hour) {
   struct tm local {};
   localtime_r(&now, &local);
   char buffer[4];
-  snprintf(buffer, sizeof(buffer), "%02d", hour ? local.tm_hour : local.tm_min);
+  int display_hour = local.tm_hour % 12;
+  if (display_hour == 0) display_hour = 12;
+  snprintf(buffer, sizeof(buffer), "%02d", hour ? display_hour : local.tm_min);
   return buffer;
 }
 
 std::string time_status_text() {
-  if (time_state == TimeState::Ntp) return "NTP SYNCED // " + date_text();
-  if (time_state == TimeState::Rtc) return "RTC HOLD // " + date_text();
-  if (setup_portal_running) return "SETUP: TAROTBOT-SETUP // 192.168.4.1";
+  if (time_state == TimeState::Ntp) return date_text() + " // NTP";
+  if (time_state == TimeState::Rtc) return date_text() + " // RTC";
+  if (setup_portal_running) return "WIFI SETUP ACTIVE";
   return "TIME UNSYNCED";
+}
+
+std::string setup_details_text() {
+  if (setup_portal_running) return "WIFI SETUP\nSSID TAROTBOT-SETUP\nPASS ARCANA78\nURL 192.168.4.1";
+  if (wifi_connected) return "WIFI CONNECTED\nTIME WILL SYNC BY NTP";
+  return "WIFI SAVED\nSETUP OPENS IF CONNECT FAILS";
 }
 
 void touch_activity() {
@@ -517,6 +541,128 @@ void show_obj(lv_obj_t *obj, bool show) {
   } else {
     lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
   }
+}
+
+bool card_art_bit(int card_index, int x, int y) {
+  if (card_index < 0 || card_index >= CARD_COUNT) return false;
+  int bit = y * CARD_ART_W + x;
+  return (CARD_ART[card_index][bit / 8] & (1U << (bit % 8))) != 0;
+}
+
+void init_card_art_image() {
+  if (card_art_pixels) return;
+  size_t bytes = CARD_ART_W * CARD_ART_H * sizeof(uint16_t);
+  card_art_pixels = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (!card_art_pixels) {
+    card_art_pixels = static_cast<uint16_t *>(malloc(bytes));
+  }
+  if (!card_art_pixels) {
+    ESP_LOGE(TAG, "No memory for card art buffer");
+    return;
+  }
+  memset(card_art_pixels, 0, bytes);
+  card_art_img.header.magic = LV_IMAGE_HEADER_MAGIC;
+  card_art_img.header.cf = LV_COLOR_FORMAT_RGB565;
+  card_art_img.header.flags = LV_IMAGE_FLAGS_MODIFIABLE;
+  card_art_img.header.w = CARD_ART_W;
+  card_art_img.header.h = CARD_ART_H;
+  card_art_img.header.stride = CARD_ART_W * sizeof(uint16_t);
+  card_art_img.header.reserved_2 = 0;
+  card_art_img.data_size = bytes;
+  card_art_img.data = reinterpret_cast<const uint8_t *>(card_art_pixels);
+  card_art_img.reserved = nullptr;
+  card_art_img.reserved_2 = nullptr;
+}
+
+void render_card_art(int card_index) {
+  bool show = card_index >= 0 && card_index < CARD_COUNT && card_art_pixels;
+  show_obj(ui.card_art, show);
+  show_obj(ui.sigil_box, false);
+  if (!show) return;
+
+  constexpr uint16_t green = 0x07e8;
+  constexpr uint16_t soft_green = 0x0545;
+  constexpr uint16_t black = 0x0000;
+  for (int y = 0; y < CARD_ART_H; ++y) {
+    for (int x = 0; x < CARD_ART_W; ++x) {
+      bool on = card_art_bit(card_index, x, y);
+      bool edge_glow = !on &&
+                       ((x > 0 && card_art_bit(card_index, x - 1, y)) ||
+                        (x + 1 < CARD_ART_W && card_art_bit(card_index, x + 1, y)) ||
+                        (y > 0 && card_art_bit(card_index, x, y - 1)) ||
+                        (y + 1 < CARD_ART_H && card_art_bit(card_index, x, y + 1)));
+      card_art_pixels[y * CARD_ART_W + x] = on ? green : (edge_glow ? soft_green : black);
+    }
+  }
+  lv_image_set_src(ui.card_art, &card_art_img);
+  lv_obj_invalidate(ui.card_art);
+}
+
+void show_dim_digits(bool show) {
+  for (auto &digit : ui.dim_digits) {
+    for (lv_obj_t *segment : digit) {
+      show_obj(segment, show);
+    }
+  }
+}
+
+void layout_dim_digit(int index, int value, int x, int y, int w, int h, int t) {
+  static const bool segs[10][DIM_SEGMENTS] = {
+      {true, true, true, true, true, true, false},
+      {false, true, true, false, false, false, false},
+      {true, true, false, true, true, false, true},
+      {true, true, true, true, false, false, true},
+      {false, true, true, false, false, true, true},
+      {true, false, true, true, false, true, true},
+      {true, false, true, true, true, true, true},
+      {true, true, true, false, false, false, false},
+      {true, true, true, true, true, true, true},
+      {true, true, true, true, false, true, true},
+  };
+  int half = h / 2;
+  struct SegmentRect {
+    int x;
+    int y;
+    int w;
+    int h;
+  };
+  SegmentRect rects[DIM_SEGMENTS] = {
+      {x + t, y, w - 2 * t, t},
+      {x + w - t, y + t, t, half - t},
+      {x + w - t, y + half, t, half - t},
+      {x + t, y + h - t, w - 2 * t, t},
+      {x, y + half, t, half - t},
+      {x, y + t, t, half - t},
+      {x + t, y + half - t / 2, w - 2 * t, t},
+  };
+
+  for (int i = 0; i < DIM_SEGMENTS; ++i) {
+    lv_obj_t *segment = ui.dim_digits[index][i];
+    lv_obj_set_pos(segment, rects[i].x, rects[i].y);
+    lv_obj_set_size(segment, rects[i].w, rects[i].h);
+    lv_obj_set_style_bg_color(segment, MATRIX, 0);
+    lv_obj_set_style_bg_opa(segment, segs[value][i] ? LV_OPA_60 : LV_OPA_10, 0);
+  }
+}
+
+void render_dim_time_digits() {
+  std::string hour = dim_time_text(true);
+  std::string minute = dim_time_text(false);
+  int values[4] = {0, 0, 0, 0};
+  if (hour.size() >= 2 && minute.size() >= 2 && hour[0] != '-') {
+    values[0] = hour[0] - '0';
+    values[1] = hour[1] - '0';
+    values[2] = minute[0] - '0';
+    values[3] = minute[1] - '0';
+  }
+
+  int w = 116;
+  int h = 176;
+  int t = 20;
+  layout_dim_digit(0, values[0], 70, 50, w, h, t);
+  layout_dim_digit(1, values[1], 224, 50, w, h, t);
+  layout_dim_digit(2, values[2], 70, 276, w, h, t);
+  layout_dim_digit(3, values[3], 224, 276, w, h, t);
 }
 
 void set_label_font(lv_obj_t *label, const lv_font_t *font) {
@@ -580,8 +726,7 @@ void update_time_labels() {
   set_text(ui.time, time_text());
   set_text(ui.status, time_status_text());
   if (saver_active) {
-    set_text(ui.dim_hour, dim_time_text(true));
-    set_text(ui.dim_minute, dim_time_text(false));
+    render_dim_time_digits();
   }
 }
 
@@ -682,12 +827,12 @@ void advance() {
 }
 
 void layout_panel(int y, int h) {
-  lv_obj_set_pos(ui.panel, 26, 132);
-  lv_obj_set_size(ui.panel, 358, 292);
-  lv_obj_set_pos(ui.card_name, 16, 14);
-  lv_obj_set_size(ui.card_name, 326, 46);
-  lv_obj_set_pos(ui.body, 20, y);
-  lv_obj_set_size(ui.body, 318, h);
+  lv_obj_set_pos(ui.panel, 46, 102);
+  lv_obj_set_size(ui.panel, 318, 360);
+  lv_obj_set_pos(ui.card_name, 12, 12);
+  lv_obj_set_size(ui.card_name, 294, 34);
+  lv_obj_set_pos(ui.body, 16, y);
+  lv_obj_set_size(ui.body, 286, h);
 }
 
 void render_saver() {
@@ -699,23 +844,27 @@ void render_saver() {
   show_obj(ui.panel, false);
   show_obj(ui.footer, false);
   show_obj(ui.sigil_box, false);
-  show_obj(ui.dim_hour, true);
-  show_obj(ui.dim_minute, true);
-  set_text(ui.dim_hour, dim_time_text(true));
-  set_text(ui.dim_minute, dim_time_text(false));
+  show_obj(ui.card_art, false);
+  show_dim_digits(true);
+  render_dim_time_digits();
+  for (lv_obj_t *rain : ui.rain) lv_obj_move_foreground(rain);
+  lv_obj_move_foreground(ui.touch_layer);
 }
 
 void render_tools() {
   update_time_labels();
+  show_dim_digits(false);
   show_obj(ui.time, true);
   show_obj(ui.status, true);
   show_obj(ui.title, true);
   show_obj(ui.subtitle, true);
   show_obj(ui.panel, true);
   show_obj(ui.footer, true);
-  show_obj(ui.dim_hour, false);
-  show_obj(ui.dim_minute, false);
-  layout_panel(214, 55);
+  show_obj(ui.body, true);
+  show_obj(ui.card_art, false);
+  lv_obj_move_foreground(ui.panel);
+  lv_obj_move_foreground(ui.touch_layer);
+  layout_panel(226, 80);
   set_text(ui.title, ">TOOLS_");
   set_text(ui.subtitle, "MATRIX WITCHWARE HUB");
   set_text(ui.card_name, "SYSTEM HUB");
@@ -725,103 +874,120 @@ void render_tools() {
   set_label_font(ui.sigil_main, &lv_font_montserrat_48);
   set_text(ui.sigil_bottom, "SETTINGS");
   set_text(ui.body, "[TAROTBOT] ONLINE\n[FUTURE TOOLS] OPEN SLOTS");
-  set_text(ui.footer, "TAP GEAR FOR SETTINGS // SWIPE RIGHT");
+  set_text(ui.footer, "TAP GEAR SETTINGS // SWIPE BACK");
 }
 
 std::string settings_text() {
-  char buffer[220];
+  int display_hour = manual_time.hour % 12;
+  if (display_hour == 0) display_hour = 12;
+  const char *meridiem = manual_time.hour >= 12 ? "PM" : "AM";
+  std::string setup = setup_details_text();
+  char buffer[360];
   snprintf(buffer, sizeof(buffer),
            "INTERPRETATIONS [%s]\n\n"
-           "< HR >  %02d\n"
+           "< HR >  %02d %s\n"
            "< MN >  %02d\n"
+           "< AMPM > %s\n"
            "< MO >  %02d\n"
            "< DY >  %02d\n"
            "< YR >  %04d\n\n"
-           "[ SAVE RTC ]",
-           interpretations_enabled ? "ON " : "OFF", manual_time.hour, manual_time.minute,
-           manual_time.month, manual_time.day, manual_time.year);
+           "[ SAVE RTC ]\n\n%s",
+           interpretations_enabled ? "ON " : "OFF", display_hour, meridiem, manual_time.minute,
+           meridiem, manual_time.month, manual_time.day, manual_time.year, setup.c_str());
   return buffer;
 }
 
 void render_settings() {
   update_time_labels();
+  show_dim_digits(false);
   show_obj(ui.time, true);
   show_obj(ui.status, true);
   show_obj(ui.title, true);
   show_obj(ui.subtitle, true);
   show_obj(ui.panel, true);
   show_obj(ui.footer, true);
-  show_obj(ui.dim_hour, false);
-  show_obj(ui.dim_minute, false);
+  show_obj(ui.body, true);
   show_obj(ui.sigil_box, false);
-  layout_panel(68, 210);
+  show_obj(ui.card_art, false);
+  lv_obj_move_foreground(ui.panel);
+  lv_obj_move_foreground(ui.touch_layer);
+  layout_panel(56, 288);
   set_text(ui.title, ">SETTINGS");
-  set_text(ui.subtitle, "TAP LEFT/RIGHT OF ROWS");
+  set_text(ui.subtitle, "TIME // WIFI // ORACLE");
   set_text(ui.card_name, "CONFIG BUFFER");
   set_text(ui.body, settings_text());
-  set_text(ui.footer, "TAP SAVE // SWIPE RIGHT TO HUB");
+  set_text(ui.footer, "TAP ROW EDGES // SWIPE BACK");
 }
 
 void render_tarot() {
   update_time_labels();
+  show_dim_digits(false);
   show_obj(ui.time, true);
   show_obj(ui.status, true);
   show_obj(ui.title, true);
   show_obj(ui.subtitle, true);
   show_obj(ui.panel, true);
   show_obj(ui.footer, true);
-  show_obj(ui.dim_hour, false);
-  show_obj(ui.dim_minute, false);
+  show_obj(ui.body, true);
+  lv_obj_move_foreground(ui.panel);
+  lv_obj_move_foreground(ui.touch_layer);
 
   char count[48];
   snprintf(count, sizeof(count), "%u OF %u CARDS REMAIN", cards_remaining(), CARD_COUNT);
 
   switch (screen_state) {
     case ScreenState::Welcome:
-      layout_panel(120, 134);
+      layout_panel(152, 130);
       set_text(ui.title, ">TAROTBOT_");
       set_text(ui.subtitle, "ARCANA // TERMINAL");
       set_text(ui.card_name, "ORACLE READY");
+      show_obj(ui.card_art, false);
       render_sigil(21);
       set_text(ui.sigil_top, "[DECK]");
       set_text(ui.sigil_main, "78");
       set_label_font(ui.sigil_main, &lv_font_montserrat_48);
       set_text(ui.sigil_bottom, "NODES");
+      lv_obj_set_pos(ui.sigil_box, 76, 66);
+      lv_obj_set_size(ui.sigil_box, 166, 116);
       set_text(ui.body, "ENTROPY ONLINE\nNO DUPLICATE RETURNS");
-      set_text(ui.footer, "TAP DRAW // HOLD SHUFFLE // SWIPE LEFT");
+      set_text(ui.footer, "TAP DRAW // HOLD SHUFFLE // SWIPE TOOLS");
       break;
     case ScreenState::CardBack:
-      layout_panel(168, 82);
+      layout_panel(170, 92);
       set_text(ui.title, ">DRAW BUFFER");
       set_text(ui.subtitle, count);
       set_text(ui.card_name, "[ CARD FACE HIDDEN ]");
+      show_obj(ui.card_art, false);
       render_sigil(-1);
       set_text(ui.body, "CARD SELECTED\nTAP TO REVEAL SIGNAL");
       set_text(ui.footer, "TAP TO REVEAL // HOLD TO SHUFFLE");
       break;
     case ScreenState::Revealed:
-      layout_panel(216, 58);
+      layout_panel(0, 0);
       set_text(ui.title, ">CARD REVEALED");
       set_text(ui.subtitle, count);
       set_text(ui.card_name, CARDS[current_card].name);
-      render_sigil(current_card);
-      set_text(ui.body, CARDS[current_card].meaning);
+      lv_obj_set_pos(ui.card_art, (318 - CARD_ART_W) / 2, 46);
+      render_card_art(current_card);
+      show_obj(ui.body, false);
       set_text(ui.footer, interpretations_enabled ? "TAP READING // HOLD SHUFFLE" : "TAP NEXT // HOLD SHUFFLE");
       break;
     case ScreenState::Reading:
-      layout_panel(76, 184);
+      layout_panel(72, 232);
       set_text(ui.title, ">READING");
       set_text(ui.subtitle, CARDS[current_card].name);
       set_text(ui.card_name, "INTERPRETATION");
+      show_obj(ui.card_art, false);
       render_sigil(-1);
-      reading_next_offset = page_text(CARDS[current_card].interpretation, reading_offset, 245, reading_has_more);
+      reading_next_offset = page_text(CARDS[current_card].interpretation, reading_offset, 285, reading_has_more);
       set_text(ui.footer, reading_has_more ? "TAP FOR MORE // HOLD TO SHUFFLE" : "TAP NEXT CARD // HOLD TO SHUFFLE");
       break;
     case ScreenState::Empty:
-      layout_panel(128, 120);
+      layout_panel(138, 140);
       set_text(ui.title, ">DECK COMPLETE");
       set_text(ui.subtitle, "ALL 78 CARDS WALKED");
       set_text(ui.card_name, "RESHUFFLE REQUIRED");
+      show_obj(ui.card_art, false);
       render_sigil(-1);
       set_text(ui.body, "FULL DECK PROCESSED\nHOLD TO RESEED ORACLE");
       set_text(ui.footer, "HOLD TO SHUFFLE");
@@ -854,7 +1020,7 @@ void handle_tools_click(const lv_point_t &point) {
 
 void handle_settings_click(const lv_point_t &point) {
   touch_activity();
-  if (point.y >= 146 && point.y < 182) {
+  if (point.y >= 154 && point.y < 190) {
     interpretations_enabled = !interpretations_enabled;
     nvs_set_bool(NVS_APP, INTERPRETATIONS_KEY, interpretations_enabled);
     render_screen();
@@ -867,8 +1033,8 @@ void handle_settings_click(const lv_point_t &point) {
     SettingField field;
   };
   static const Row rows[] = {{205, 233, SettingField::Hour},  {233, 261, SettingField::Minute},
-                             {261, 289, SettingField::Month}, {289, 317, SettingField::Day},
-                             {317, 345, SettingField::Year}};
+                             {261, 289, SettingField::AmPm},  {289, 317, SettingField::Month},
+                             {317, 345, SettingField::Day},   {345, 373, SettingField::Year}};
   for (const Row &row : rows) {
     if (point.y >= row.y1 && point.y < row.y2) {
       setting_field = row.field;
@@ -878,7 +1044,7 @@ void handle_settings_click(const lv_point_t &point) {
     }
   }
 
-  if (point.y >= 365 && point.y < 420) {
+  if (point.y >= 382 && point.y < 428) {
     save_manual_time();
     render_screen();
     return;
@@ -890,24 +1056,50 @@ void handle_settings_click(const lv_point_t &point) {
   }
 }
 
+void handle_horizontal_swipe() {
+  if (saver_active) {
+    wake_from_saver();
+    return;
+  }
+  touch_activity();
+  if (app_view == AppView::Tarot) {
+    app_view = AppView::Tools;
+  } else if (app_view == AppView::Settings) {
+    app_view = AppView::Tools;
+  } else {
+    app_view = AppView::Tarot;
+  }
+  touch_block_until_ms = now_ms() + TOUCH_BLOCK_MS;
+  render_screen();
+}
+
 void touch_event_cb(lv_event_t *event) {
   lv_event_code_t code = lv_event_get_code(event);
-  if (code == LV_EVENT_GESTURE) {
+  if (code == LV_EVENT_PRESSED) {
+    lv_indev_t *indev = lv_event_get_indev(event);
+    if (indev) {
+      lv_indev_get_point(indev, &touch_press_point);
+      touch_press_valid = true;
+      touch_press_ms = now_ms();
+    }
+  } else if (code == LV_EVENT_RELEASED) {
+    if (touch_press_valid) {
+      lv_point_t point {};
+      lv_indev_t *indev = lv_event_get_indev(event);
+      if (indev) lv_indev_get_point(indev, &point);
+      int dx = point.x - touch_press_point.x;
+      int dy = point.y - touch_press_point.y;
+      int abs_dx = dx < 0 ? -dx : dx;
+      int abs_dy = dy < 0 ? -dy : dy;
+      if (abs_dx >= 58 && abs_dx > abs_dy + 22 && now_ms() - touch_press_ms < 1800) {
+        handle_horizontal_swipe();
+      }
+      touch_press_valid = false;
+    }
+  } else if (code == LV_EVENT_GESTURE) {
     lv_indev_t *indev = lv_event_get_indev(event);
     lv_dir_t dir = indev ? lv_indev_get_gesture_dir(indev) : LV_DIR_NONE;
-    if (saver_active) {
-      wake_from_saver();
-    } else if (dir == LV_DIR_LEFT) {
-      touch_activity();
-      app_view = AppView::Tools;
-      touch_block_until_ms = now_ms() + TOUCH_BLOCK_MS;
-      render_screen();
-    } else if (dir == LV_DIR_RIGHT) {
-      touch_activity();
-      app_view = app_view == AppView::Settings ? AppView::Tools : AppView::Tarot;
-      touch_block_until_ms = now_ms() + TOUCH_BLOCK_MS;
-      render_screen();
-    }
+    if (saver_active || dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT) handle_horizontal_swipe();
   } else if (code == LV_EVENT_CLICKED) {
     uint64_t now = now_ms();
     if (now < touch_block_until_ms) {
@@ -945,14 +1137,16 @@ void idle_timer_cb(lv_timer_t *) {
 void rain_timer_cb(lv_timer_t *) {
   static uint32_t frame = 0;
   ++frame;
-  static const char *glyphs[] = {"01", "10", "78", "XI", "IV", "00", "RUN", "HEX", "NTP", "SIG"};
+  static const char *glyphs[] = {
+      "01", "10", "{}", "[]", "<>", "/\\", "78", "XI", "IV", "00", "RUN", "HEX", "NTP", "SIG"};
   for (size_t i = 0; i < ui.rain.size(); ++i) {
-    const char *text = glyphs[(frame + i * 3) % (sizeof(glyphs) / sizeof(glyphs[0]))];
+    uint32_t tick = frame / (saver_active ? 1 : 2);
+    const char *text = glyphs[(tick + i * 3) % (sizeof(glyphs) / sizeof(glyphs[0]))];
     lv_label_set_text(ui.rain[i], text);
-    lv_obj_set_style_text_opa(ui.rain[i], saver_active ? static_cast<lv_opa_t>(95 + (i % 4) * 22)
-                                                       : static_cast<lv_opa_t>(35 + (i % 4) * 18),
+    lv_obj_set_style_text_opa(ui.rain[i], saver_active ? static_cast<lv_opa_t>(110 + (i % 4) * 24)
+                                                       : static_cast<lv_opa_t>(48 + (i % 4) * 14),
                               0);
-    lv_obj_set_y(ui.rain[i], (lv_obj_get_y(ui.rain[i]) + (saver_active ? 14 : 7) + (i % 5)) % 502);
+    lv_obj_set_y(ui.rain[i], (lv_obj_get_y(ui.rain[i]) + (saver_active ? 18 : 8) + (i % 5)) % WATCH_H);
   }
   if (saver_active) update_time_labels();
 }
@@ -967,28 +1161,28 @@ void create_ui() {
     ui.rain[i] = lv_label_create(ui.root);
     lv_label_set_text(ui.rain[i], "01");
     style_label(ui.rain[i], &lv_font_unscii_16, MATRIX_DIM, LV_TEXT_ALIGN_CENTER);
-    lv_obj_set_pos(ui.rain[i], 8 + i * 29, (i * 43) % 470);
-    lv_obj_set_style_text_opa(ui.rain[i], static_cast<lv_opa_t>(35 + (i % 4) * 18), 0);
+    lv_obj_set_pos(ui.rain[i], 4 + (i % 14) * 29, (i * 37) % WATCH_H);
+    lv_obj_set_style_text_opa(ui.rain[i], static_cast<lv_opa_t>(48 + (i % 4) * 14), 0);
   }
 
   ui.time = lv_label_create(ui.root);
-  style_label(ui.time, &lv_font_unscii_16, MATRIX, LV_TEXT_ALIGN_LEFT);
-  lv_obj_set_pos(ui.time, 48, 13);
-  lv_obj_set_size(ui.time, 106, 26);
+  style_label(ui.time, &lv_font_unscii_16, MATRIX, LV_TEXT_ALIGN_CENTER);
+  lv_obj_set_pos(ui.time, 104, 10);
+  lv_obj_set_size(ui.time, 202, 26);
 
   ui.status = lv_label_create(ui.root);
-  style_label(ui.status, &lv_font_unscii_8, MATRIX_SOFT, LV_TEXT_ALIGN_RIGHT);
-  lv_obj_set_pos(ui.status, 154, 14);
-  lv_obj_set_size(ui.status, 210, 34);
+  style_label(ui.status, &lv_font_unscii_8, MATRIX_SOFT, LV_TEXT_ALIGN_CENTER);
+  lv_obj_set_pos(ui.status, 58, 36);
+  lv_obj_set_size(ui.status, 294, 24);
 
   ui.title = lv_label_create(ui.root);
   style_label(ui.title, &lv_font_unscii_16, MATRIX, LV_TEXT_ALIGN_CENTER);
-  lv_obj_set_pos(ui.title, 34, 58);
+  lv_obj_set_pos(ui.title, 34, 60);
   lv_obj_set_size(ui.title, 342, 32);
 
   ui.subtitle = lv_label_create(ui.root);
   style_label(ui.subtitle, &lv_font_unscii_16, MATRIX_SOFT, LV_TEXT_ALIGN_CENTER);
-  lv_obj_set_pos(ui.subtitle, 34, 91);
+  lv_obj_set_pos(ui.subtitle, 34, 84);
   lv_obj_set_size(ui.subtitle, 342, 34);
 
   ui.panel = lv_obj_create(ui.root);
@@ -1034,30 +1228,37 @@ void create_ui() {
   lv_obj_set_pos(ui.body, 20, 216);
   lv_obj_set_size(ui.body, 318, 58);
 
+  init_card_art_image();
+  ui.card_art = lv_image_create(ui.panel);
+  if (card_art_pixels) {
+    lv_image_set_src(ui.card_art, &card_art_img);
+  }
+  lv_obj_set_size(ui.card_art, CARD_ART_W, CARD_ART_H);
+  lv_obj_add_flag(ui.card_art, LV_OBJ_FLAG_HIDDEN);
+
   ui.footer = lv_label_create(ui.root);
   style_label(ui.footer, &lv_font_unscii_16, MATRIX_SOFT, LV_TEXT_ALIGN_CENTER);
   lv_obj_set_pos(ui.footer, 24, 436);
   lv_obj_set_size(ui.footer, 362, 46);
 
-  ui.dim_hour = lv_label_create(ui.root);
-  style_label(ui.dim_hour, &lv_font_montserrat_48, MATRIX, LV_TEXT_ALIGN_CENTER);
-  lv_obj_set_pos(ui.dim_hour, 106, 118);
-  lv_obj_set_size(ui.dim_hour, 198, 74);
-  lv_obj_set_style_text_opa(ui.dim_hour, LV_OPA_90, 0);
-  lv_obj_add_flag(ui.dim_hour, LV_OBJ_FLAG_HIDDEN);
-
-  ui.dim_minute = lv_label_create(ui.root);
-  style_label(ui.dim_minute, &lv_font_montserrat_48, MATRIX, LV_TEXT_ALIGN_CENTER);
-  lv_obj_set_pos(ui.dim_minute, 106, 235);
-  lv_obj_set_size(ui.dim_minute, 198, 74);
-  lv_obj_set_style_text_opa(ui.dim_minute, LV_OPA_90, 0);
-  lv_obj_add_flag(ui.dim_minute, LV_OBJ_FLAG_HIDDEN);
+  for (auto &digit : ui.dim_digits) {
+    for (lv_obj_t *&segment : digit) {
+      segment = lv_obj_create(ui.root);
+      lv_obj_remove_style_all(segment);
+      lv_obj_set_style_bg_color(segment, MATRIX, 0);
+      lv_obj_set_style_bg_opa(segment, LV_OPA_60, 0);
+      lv_obj_set_style_radius(segment, 2, 0);
+      lv_obj_add_flag(segment, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
 
   ui.touch_layer = lv_obj_create(ui.root);
   lv_obj_remove_style_all(ui.touch_layer);
-  lv_obj_set_size(ui.touch_layer, 410, 502);
+  lv_obj_set_size(ui.touch_layer, WATCH_W, WATCH_H);
   lv_obj_set_pos(ui.touch_layer, 0, 0);
   lv_obj_add_flag(ui.touch_layer, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(ui.touch_layer, touch_event_cb, LV_EVENT_PRESSED, nullptr);
+  lv_obj_add_event_cb(ui.touch_layer, touch_event_cb, LV_EVENT_RELEASED, nullptr);
   lv_obj_add_event_cb(ui.touch_layer, touch_event_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_event_cb(ui.touch_layer, touch_event_cb, LV_EVENT_LONG_PRESSED, nullptr);
   lv_obj_add_event_cb(ui.touch_layer, touch_event_cb, LV_EVENT_GESTURE, nullptr);

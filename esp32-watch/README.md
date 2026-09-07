@@ -9,13 +9,13 @@ This is separate from the older `esp32/` ESP32-C6-LCD-1.47 build. The watch has 
 - Boots straight into TarotBot.
 - Uses the Arcana Terminal look from the web app's `emoji-matrix` theme, with black AMOLED background, green terminal text, and code-rain accents.
 - Draws through the full 78-card deck without repeats.
-- Shows firmware-drawn green/black tarot sigils instead of the old emoji card art.
+- Shows large green/black Rider-Waite card line art generated from the local `decks/rider-waite/images` PNGs.
 - Saves the remaining deck in flash so power loss does not reshuffle unless you hold to reshuffle.
 - Taps advance through draw, reveal, reading, and next card. If interpretations are disabled, tapping after a reveal skips straight to the next card.
 - Holding the screen or BOOT button reshuffles the full deck.
-- Swipe left from TarotBot to open the Matrix tools hub; tap the gear/settings tile for settings; swipe right or use the BOOT button to back out.
+- Swipe horizontally from TarotBot to open the Matrix tools hub; tap the gear/settings tile for settings; swipe again or use the BOOT button to back out.
 - Settings lets you turn interpretations on/off and set the clock manually with touch steppers.
-- After 60 seconds idle, the AMOLED display dims into a screen-wide code-rain clock. The first tap wakes only; it does not accidentally advance the reading.
+- After 60 seconds idle, the AMOLED display dims into a brighter screen-wide code-rain clock with large stacked 12-hour time digits. The first tap wakes only; it does not accidentally advance the reading.
 - Uses Wi-Fi NTP to sync time and stores the result in the onboard PCF85063 RTC.
 - If Wi-Fi is unavailable, it falls back to RTC time. If no valid time is known, it displays `TIME UNSYNCED`.
 
@@ -23,8 +23,8 @@ This is separate from the older `esp32/` ESP32-C6-LCD-1.47 build. The watch has 
 
 - Tap: advance TarotBot, open the highlighted tools/settings area, or adjust a settings row.
 - Hold: reshuffle the TarotBot deck. Release after holding is ignored briefly so it does not double-count as a tap.
-- Swipe left: TarotBot to tools hub.
-- Swipe right: settings to tools hub, or tools hub back to TarotBot.
+- Swipe horizontally from TarotBot: open tools hub.
+- Swipe horizontally from tools/settings: go back one screen.
 - BOOT button short press: same as tap in TarotBot; backs out from settings/tools.
 - BOOT button hold: reshuffle.
 
@@ -38,6 +38,8 @@ If the watch has no saved Wi-Fi, or the saved Wi-Fi does not connect, it starts 
 
 Connect your phone or computer to that temporary network, open the setup page, enter your normal Wi-Fi, and save. The watch restarts and tries to sync time.
 
+The watch no longer tries to cram this setup address into the tiny top status row. Open **Settings** on the watch to see the current Wi-Fi/setup details.
+
 ## Build
 
 Install ESP-IDF 5.5.x or 6.0.x first. Then from this folder:
@@ -48,6 +50,16 @@ idf.py build
 ```
 
 The first build can be slow because ESP-IDF downloads the Waveshare board support package and LVGL.
+
+## Regenerate Card Art
+
+The watch firmware embeds a small 1-bit mask for each Rider-Waite card. To regenerate those masks after changing the source deck images:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File esp32-watch\tools\generate_card_art.ps1
+```
+
+The script reads `decks/rider-waite/images`, keeps the dark linework, and lets the firmware recolor it green on black.
 
 ## Flash Over USB
 
