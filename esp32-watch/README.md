@@ -7,14 +7,26 @@ This is separate from the older `esp32/` ESP32-C6-LCD-1.47 build. The watch has 
 ## What It Does
 
 - Boots straight into TarotBot.
-- Uses the Arcana Terminal look from the web app's `emoji-matrix` theme.
-- Draws through the full 78-card Emoji Deck without repeats.
+- Uses the Arcana Terminal look from the web app's `emoji-matrix` theme, with black AMOLED background, green terminal text, and code-rain accents.
+- Draws through the full 78-card deck without repeats.
+- Shows firmware-drawn green/black tarot sigils instead of the old emoji card art.
 - Saves the remaining deck in flash so power loss does not reshuffle unless you hold to reshuffle.
-- Taps advance through draw, reveal, reading, and next card.
+- Taps advance through draw, reveal, reading, and next card. If interpretations are disabled, tapping after a reveal skips straight to the next card.
 - Holding the screen or BOOT button reshuffles the full deck.
-- After 60 seconds idle, the AMOLED display dims into a terminal-style low-light screen. The first tap wakes only; it does not accidentally advance the reading.
+- Swipe left from TarotBot to open the Matrix tools hub; tap the gear/settings tile for settings; swipe right or use the BOOT button to back out.
+- Settings lets you turn interpretations on/off and set the clock manually with touch steppers.
+- After 60 seconds idle, the AMOLED display dims into a screen-wide code-rain clock. The first tap wakes only; it does not accidentally advance the reading.
 - Uses Wi-Fi NTP to sync time and stores the result in the onboard PCF85063 RTC.
 - If Wi-Fi is unavailable, it falls back to RTC time. If no valid time is known, it displays `TIME UNSYNCED`.
+
+## Watch Controls
+
+- Tap: advance TarotBot, open the highlighted tools/settings area, or adjust a settings row.
+- Hold: reshuffle the TarotBot deck. Release after holding is ignored briefly so it does not double-count as a tap.
+- Swipe left: TarotBot to tools hub.
+- Swipe right: settings to tools hub, or tools hub back to TarotBot.
+- BOOT button short press: same as tap in TarotBot; backs out from settings/tools.
+- BOOT button hold: reshuffle.
 
 ## Wi-Fi Setup
 
