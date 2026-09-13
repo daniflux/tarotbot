@@ -3,8 +3,6 @@
 
   const STORAGE_VERSION = 1;
   const PUBLIC_DECK = "emoji-matrix";
-  const DRAW_COOLDOWN_MS = 500;
-  const REVEAL_COOLDOWN_MS = 1600;
   const elements = {
     deckSelector: document.getElementById("deckSelector"),
     readerMode: document.getElementById("readerMode"),
@@ -38,10 +36,6 @@
   let isTransitioning = false;
   let currentDeck = PUBLIC_DECK;
   let loadToken = 0;
-  let renderCycle = 0;
-  let cardPointerCycle = -1;
-  let cardInputLockedUntil = 0;
-  let cardInputLockTimer = 0;
 
   localStorage.setItem("tarotbot:lastDeck", PUBLIC_DECK);
 
@@ -99,9 +93,9 @@
       if (state.pending && (!ids.has(state.pending.id) || typeof state.pending.reversed !== "boolean")) return false;
       const allIds = [...state.order, ...state.drawn, ...(state.pending ? [state.pending] : [])].map(item => item.id);
       if (allIds.length !== deck.length || new Set(allIds).size !== deck.length) return false;
-      order = state.pending ? [state.pending, ...state.order] : state.order;
+      order = state.order;
       drawn = state.drawn;
-      pending = null;
+      pending = state.pending || null;
       elements.reversals.checked = Boolean(state.reversals);
       return true;
     } catch {
@@ -180,16 +174,6 @@
     elements.cardFront.appendChild(content);
   }
 
-  function lockCardInput(duration) {
-    cardInputLockedUntil = performance.now() + duration;
-    elements.cardButton.classList.add("is-input-locked");
-    window.clearTimeout(cardInputLockTimer);
-    cardInputLockTimer = window.setTimeout(() => {
-      cardInputLockedUntil = 0;
-      elements.cardButton.classList.remove("is-input-locked");
-    }, duration);
-  }
-
   function renderMeaning() {
     const latest = drawn[drawn.length - 1];
     const card = resolveCard(latest);
@@ -253,8 +237,6 @@
   }
 
   function render() {
-    renderCycle += 1;
-    cardPointerCycle = -1;
     document.body.dataset.deck = currentDeck;
     document.body.classList.toggle("focus-mode", elements.focusMode.checked);
     elements.appEyebrow.textContent = "ARCANA // TERMINAL";
@@ -271,27 +253,21 @@
       elements.deckStatus.textContent = `${order.length} cards remain after this draw`;
       elements.cardButton.disabled = false;
       elements.cardButton.setAttribute("aria-label", "Reveal the selected card");
-      if (elements.nextButton) {
-        elements.nextButton.disabled = true;
-        elements.nextButton.textContent = "Reveal card above";
-      }
+      elements.nextButton.disabled = true;
+      elements.nextButton.textContent = "Reveal card above";
     } else if (order.length) {
       elements.cardPrompt.textContent = drawn.length ? "Draw next card" : "Draw a card";
       elements.deckStatus.textContent = `${order.length} of ${deck.length} cards remaining`;
       elements.cardButton.disabled = false;
-      elements.cardButton.setAttribute("aria-label", drawn.length ? "Draw the next card" : "Draw the first card");
-      if (elements.nextButton) {
-        elements.nextButton.disabled = false;
-        elements.nextButton.textContent = drawn.length ? "Draw next card" : "Draw card";
-      }
+      elements.cardButton.setAttribute("aria-label", "Draw the next card");
+      elements.nextButton.disabled = false;
+      elements.nextButton.textContent = drawn.length ? "Draw next card" : "Draw card";
     } else {
       elements.cardPrompt.textContent = "Deck empty";
       elements.deckStatus.textContent = `All ${deck.length} cards have been drawn`;
       elements.cardButton.disabled = true;
-      if (elements.nextButton) {
-        elements.nextButton.disabled = true;
-        elements.nextButton.textContent = "Deck empty";
-      }
+      elements.nextButton.disabled = true;
+      elements.nextButton.textContent = "Deck empty";
     }
     elements.shuffleButton.disabled = false;
   }
@@ -313,7 +289,7 @@
     isTransitioning = true;
     elements.card.classList.remove("is-revealed");
     elements.cardButton.disabled = true;
-    if (elements.nextButton) elements.nextButton.disabled = true;
+    elements.nextButton.disabled = true;
     elements.shuffleButton.disabled = true;
     setDeckControlsDisabled(true);
     elements.readerMode.disabled = true;
@@ -357,7 +333,7 @@
     const token = ++loadToken;
     currentDeck = name === PUBLIC_DECK ? name : PUBLIC_DECK;
     setDeckControlsDisabled(true);
-    if (elements.nextButton) elements.nextButton.disabled = true;
+    elements.nextButton.disabled = true;
     elements.cardButton.disabled = true;
     elements.deckStatus.textContent = "Loading deck…";
     document.querySelectorAll("script[data-reader-deck]").forEach(script => script.remove());
@@ -372,10 +348,7 @@
         deck = window.deckData?.cards || [];
         validateDeck(deck);
         if (!restore()) freshShuffle();
-        else {
-          save();
-          render();
-        }
+        else render();
       } catch (error) {
         console.error(error);
         elements.deckStatus.textContent = "This deck could not be loaded.";
@@ -460,23 +433,8 @@
     if (MatrixRain.active) MatrixRain.resize();
   });
 
-  if ("PointerEvent" in window) {
-    elements.cardButton.addEventListener("pointerdown", () => {
-      cardPointerCycle = renderCycle;
-    }, { passive: true });
-  }
-
-  elements.cardButton.addEventListener("click", event => {
-    const now = performance.now();
-    if (now < cardInputLockedUntil) return;
-    if (event.detail !== 0 && cardPointerCycle !== renderCycle) return;
-    const lockDuration = pending ? REVEAL_COOLDOWN_MS : DRAW_COOLDOWN_MS;
-    cardPointerCycle = -1;
-    elements.cardButton.blur();
-    lockCardInput(lockDuration);
-    reveal();
-  });
-  if (elements.nextButton) elements.nextButton.addEventListener("click", drawNext);
+  elements.cardButton.addEventListener("click", reveal);
+  elements.nextButton.addEventListener("click", drawNext);
   if (elements.deckSelector) elements.deckSelector.addEventListener("change", () => loadDeck(PUBLIC_DECK));
   elements.readerMode.addEventListener("change", () => { save(); renderMeaning(); });
   elements.focusMode.addEventListener("change", () => { save(); render(); });

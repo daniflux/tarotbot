@@ -251,12 +251,8 @@ select {
   background: transparent;
   perspective: 1100px;
   cursor: pointer;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
 }
 .card-button:disabled { cursor: default; }
-.card-button.is-input-locked { pointer-events: none; }
 .card-button:focus-visible { outline: 3px solid var(--gold-bright); outline-offset: 7px; }
 .card {
   display: block;
