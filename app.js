@@ -109,7 +109,7 @@
     return image.replace(/^\.\.\//, "");
   }
 
-  function riderImageForCard(name) {
+  function riderImageForCard(name, basePath = "decks/rider-waite/images") {
     const majors = {
       "The Fool": "fool", "The Magician": "magician", "The High Priestess": "priestess",
       "The Empress": "empress", "The Emperor": "emperor", "The Hierophant": "hierophant",
@@ -119,15 +119,15 @@
       "The Devil": "devil", "The Tower": "tower", "The Star": "star",
       "The Moon": "moon", "The Sun": "sun", "Judgement": "judgement", "The World": "world"
     };
-    if (majors[name]) return `decks/rider-waite/images/major_arcana_${majors[name]}.png`;
+    if (majors[name]) return `${basePath}/major_arcana_${majors[name]}.png`;
     const match = name.match(/^(Ace|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Page|Knight|Queen|King) of (Wands|Cups|Swords|Pentacles)$/);
     if (!match) return "";
     const ranks = { Ace: "ace", Two: "2", Three: "3", Four: "4", Five: "5", Six: "6", Seven: "7", Eight: "8", Nine: "9", Ten: "10", Page: "page", Knight: "knight", Queen: "queen", King: "king" };
-    return `decks/rider-waite/images/minor_arcana_${match[2].toLowerCase()}_${ranks[match[1]]}.png`;
+    return `${basePath}/minor_arcana_${match[2].toLowerCase()}_${ranks[match[1]]}.png`;
   }
 
   function displayImageForCard(card) {
-    return currentDeck === "emoji-matrix" ? riderImageForCard(card.name) : card.image;
+    return currentDeck === "emoji-matrix" ? riderImageForCard(card.name, "decks/emoji-matrix/images") : card.image;
   }
 
   function validateDeck(cards) {
