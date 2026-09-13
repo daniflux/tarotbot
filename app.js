@@ -3,6 +3,8 @@
 
   const STORAGE_VERSION = 1;
   const PUBLIC_DECK = "emoji-matrix";
+  const DRAW_COOLDOWN_MS = 500;
+  const REVEAL_COOLDOWN_MS = 1600;
   const elements = {
     deckSelector: document.getElementById("deckSelector"),
     readerMode: document.getElementById("readerMode"),
@@ -38,6 +40,8 @@
   let loadToken = 0;
   let renderCycle = 0;
   let cardPointerCycle = -1;
+  let cardInputLockedUntil = 0;
+  let cardInputLockTimer = 0;
 
   localStorage.setItem("tarotbot:lastDeck", PUBLIC_DECK);
 
@@ -174,6 +178,16 @@
       content.appendChild(orientation);
     }
     elements.cardFront.appendChild(content);
+  }
+
+  function lockCardInput(duration) {
+    cardInputLockedUntil = performance.now() + duration;
+    elements.cardButton.classList.add("is-input-locked");
+    window.clearTimeout(cardInputLockTimer);
+    cardInputLockTimer = window.setTimeout(() => {
+      cardInputLockedUntil = 0;
+      elements.cardButton.classList.remove("is-input-locked");
+    }, duration);
   }
 
   function renderMeaning() {
@@ -453,8 +467,13 @@
   }
 
   elements.cardButton.addEventListener("click", event => {
+    const now = performance.now();
+    if (now < cardInputLockedUntil) return;
     if (event.detail !== 0 && cardPointerCycle !== renderCycle) return;
+    const lockDuration = pending ? REVEAL_COOLDOWN_MS : DRAW_COOLDOWN_MS;
     cardPointerCycle = -1;
+    elements.cardButton.blur();
+    lockCardInput(lockDuration);
     reveal();
   });
   if (elements.nextButton) elements.nextButton.addEventListener("click", drawNext);
