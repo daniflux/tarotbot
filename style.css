@@ -330,7 +330,7 @@ body[data-deck="emoji-matrix"] .card-front {
   border: 0;
   color: #00ff41;
   background: transparent;
-  box-shadow: 0 0 16px rgba(0,255,65,.46), 0 0 36px rgba(0,255,65,.16);
+  box-shadow: none;
   opacity: 0;
   pointer-events: none;
   transform: none;

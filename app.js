@@ -36,6 +36,8 @@
   let isTransitioning = false;
   let currentDeck = PUBLIC_DECK;
   let loadToken = 0;
+  let renderCycle = 0;
+  let cardPointerCycle = -1;
 
   localStorage.setItem("tarotbot:lastDeck", PUBLIC_DECK);
 
@@ -237,6 +239,8 @@
   }
 
   function render() {
+    renderCycle += 1;
+    cardPointerCycle = -1;
     document.body.dataset.deck = currentDeck;
     document.body.classList.toggle("focus-mode", elements.focusMode.checked);
     elements.appEyebrow.textContent = "ARCANA // TERMINAL";
@@ -253,21 +257,27 @@
       elements.deckStatus.textContent = `${order.length} cards remain after this draw`;
       elements.cardButton.disabled = false;
       elements.cardButton.setAttribute("aria-label", "Reveal the selected card");
-      elements.nextButton.disabled = true;
-      elements.nextButton.textContent = "Reveal card above";
+      if (elements.nextButton) {
+        elements.nextButton.disabled = true;
+        elements.nextButton.textContent = "Reveal card above";
+      }
     } else if (order.length) {
       elements.cardPrompt.textContent = drawn.length ? "Draw next card" : "Draw a card";
       elements.deckStatus.textContent = `${order.length} of ${deck.length} cards remaining`;
       elements.cardButton.disabled = false;
       elements.cardButton.setAttribute("aria-label", drawn.length ? "Draw the next card" : "Draw the first card");
-      elements.nextButton.disabled = false;
-      elements.nextButton.textContent = drawn.length ? "Draw next card" : "Draw card";
+      if (elements.nextButton) {
+        elements.nextButton.disabled = false;
+        elements.nextButton.textContent = drawn.length ? "Draw next card" : "Draw card";
+      }
     } else {
       elements.cardPrompt.textContent = "Deck empty";
       elements.deckStatus.textContent = `All ${deck.length} cards have been drawn`;
       elements.cardButton.disabled = true;
-      elements.nextButton.disabled = true;
-      elements.nextButton.textContent = "Deck empty";
+      if (elements.nextButton) {
+        elements.nextButton.disabled = true;
+        elements.nextButton.textContent = "Deck empty";
+      }
     }
     elements.shuffleButton.disabled = false;
   }
@@ -289,7 +299,7 @@
     isTransitioning = true;
     elements.card.classList.remove("is-revealed");
     elements.cardButton.disabled = true;
-    elements.nextButton.disabled = true;
+    if (elements.nextButton) elements.nextButton.disabled = true;
     elements.shuffleButton.disabled = true;
     setDeckControlsDisabled(true);
     elements.readerMode.disabled = true;
@@ -333,7 +343,7 @@
     const token = ++loadToken;
     currentDeck = name === PUBLIC_DECK ? name : PUBLIC_DECK;
     setDeckControlsDisabled(true);
-    elements.nextButton.disabled = true;
+    if (elements.nextButton) elements.nextButton.disabled = true;
     elements.cardButton.disabled = true;
     elements.deckStatus.textContent = "Loading deck…";
     document.querySelectorAll("script[data-reader-deck]").forEach(script => script.remove());
@@ -436,8 +446,18 @@
     if (MatrixRain.active) MatrixRain.resize();
   });
 
-  elements.cardButton.addEventListener("click", reveal);
-  elements.nextButton.addEventListener("click", drawNext);
+  if ("PointerEvent" in window) {
+    elements.cardButton.addEventListener("pointerdown", () => {
+      cardPointerCycle = renderCycle;
+    }, { passive: true });
+  }
+
+  elements.cardButton.addEventListener("click", event => {
+    if (event.detail !== 0 && cardPointerCycle !== renderCycle) return;
+    cardPointerCycle = -1;
+    reveal();
+  });
+  if (elements.nextButton) elements.nextButton.addEventListener("click", drawNext);
   if (elements.deckSelector) elements.deckSelector.addEventListener("change", () => loadDeck(PUBLIC_DECK));
   elements.readerMode.addEventListener("change", () => { save(); renderMeaning(); });
   elements.focusMode.addEventListener("change", () => { save(); render(); });
