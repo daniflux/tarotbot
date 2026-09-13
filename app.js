@@ -93,9 +93,9 @@
       if (state.pending && (!ids.has(state.pending.id) || typeof state.pending.reversed !== "boolean")) return false;
       const allIds = [...state.order, ...state.drawn, ...(state.pending ? [state.pending] : [])].map(item => item.id);
       if (allIds.length !== deck.length || new Set(allIds).size !== deck.length) return false;
-      order = state.order;
+      order = state.pending ? [state.pending, ...state.order] : state.order;
       drawn = state.drawn;
-      pending = state.pending || null;
+      pending = null;
       elements.reversals.checked = Boolean(state.reversals);
       return true;
     } catch {
@@ -348,7 +348,10 @@
         deck = window.deckData?.cards || [];
         validateDeck(deck);
         if (!restore()) freshShuffle();
-        else render();
+        else {
+          save();
+          render();
+        }
       } catch (error) {
         console.error(error);
         elements.deckStatus.textContent = "This deck could not be loaded.";
