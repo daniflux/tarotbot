@@ -31,8 +31,6 @@ body[data-deck="emoji-matrix"] {
   --gold-bright: #a1ffb7;
   --panel: rgba(0, 10, 3, 0.88);
   --line: rgba(0, 255, 65, 0.48);
-  --card-w: min(88vw, 360px);
-  --card-h: calc(var(--card-w) * 1.6923077);
   background: #000;
   font-family: "Courier New", Consolas, monospace;
 }
@@ -119,7 +117,7 @@ body[data-deck="emoji-matrix"] h1 {
   color: #00ff41;
   font-family: "Courier New", Consolas, monospace;
   font-weight: 900;
-  letter-spacing: 0;
+  letter-spacing: -.08em;
   text-transform: uppercase;
   text-shadow: 0 0 5px #00ff41, 0 0 18px rgba(0,255,65,.75);
 }
@@ -132,7 +130,7 @@ body[data-deck="emoji-matrix"] h1::after { content: "_"; animation: terminal-bli
   margin: 0 0 7px;
   color: var(--gold);
   font: 700 0.72rem/1.2 system-ui, sans-serif;
-  letter-spacing: 0;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -164,7 +162,6 @@ body[data-deck="rider-waite"] .meaning-panel {
 
 body[data-deck="emoji-matrix"] select,
 body[data-deck="emoji-matrix"] .switch-row,
-body[data-deck="emoji-matrix"] .tool-tab,
 body[data-deck="emoji-matrix"] .button,
 body[data-deck="emoji-matrix"] .history-thumb,
 body[data-deck="emoji-matrix"] .shuffle-dialog {
@@ -177,41 +174,11 @@ body[data-deck="emoji-matrix"] .button-secondary { border-color: #00ff41; color:
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1.45fr 1fr 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
   gap: 10px;
   align-items: end;
   margin: 28px 0 20px;
   padding: 14px;
-}
-
-.tool-nav {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-}
-
-.tool-tab {
-  display: grid;
-  min-height: 40px;
-  place-items: center;
-  padding: 9px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  color: var(--ink);
-  background: rgba(0,0,0,.2);
-  font: 750 0.78rem/1.15 system-ui, sans-serif;
-  text-transform: uppercase;
-}
-
-.tool-tab.is-active {
-  color: #000;
-  background: var(--gold);
-  box-shadow: 0 0 14px rgba(0,255,65,.35);
-}
-
-.tool-tab-soon {
-  color: var(--muted);
-  background: transparent;
 }
 
 .field, .switch-row { font: 600 0.78rem/1.2 system-ui, sans-serif; }
@@ -273,7 +240,6 @@ select {
   overflow: hidden;
   border: 3px solid var(--gold);
   border-radius: 18px;
-  -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   box-shadow: 0 24px 70px rgba(0,0,0,0.48);
 }
@@ -291,26 +257,21 @@ body[data-deck="rider-waite"] .card-back {
   box-shadow: 0 24px 70px rgba(15,0,3,.7), inset 0 0 35px rgba(0,0,0,.35);
 }
 .moon { color: var(--gold-bright); font-size: 6rem; line-height: 1; }
-.card-prompt { margin-top: 24px; color: var(--gold-bright); font: 700 0.72rem/1.2 system-ui, sans-serif; letter-spacing: 0; text-transform: uppercase; }
+.card-prompt { margin-top: 24px; color: var(--gold-bright); font: 700 0.72rem/1.2 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
 .card-front { padding: 14px; color: #241b2b; background: #f2ead7; transform: rotateY(180deg); }
 .card-front.is-reversed > .front-content { transform: rotate(180deg); }
 .front-content { display: flex; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; transition: transform 350ms; }
 .card-image { width: 100%; min-height: 0; flex: 1; object-fit: contain; border-radius: 9px; }
 .card-symbol { font-size: 5rem; }
 .card-name { margin-top: 12px; font-size: 1.35rem; font-weight: 700; }
-.orientation { margin-top: 5px; color: #6f526f; font: 700 0.65rem/1 system-ui, sans-serif; letter-spacing: 0; text-transform: uppercase; }
+.orientation { margin-top: 5px; color: #6f526f; font: 700 0.65rem/1 system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
 
 body[data-deck="emoji-matrix"] .card-button,
 body[data-deck="emoji-matrix"] .card-face,
 body[data-deck="emoji-matrix"] .card-image { border-radius: 0; }
-body[data-deck="emoji-matrix"] .card,
-body[data-deck="emoji-matrix"] .card.is-revealed {
-  transform: none;
-}
 body[data-deck="emoji-matrix"] .card-face {
   border: 1px solid #00ff41;
   box-shadow: 0 0 10px #00ff41, 0 0 35px rgba(0,255,65,.28), inset 0 0 24px rgba(0,255,65,.1);
-  transition: opacity 260ms ease;
 }
 body[data-deck="emoji-matrix"] .card-back {
   background:
@@ -325,55 +286,17 @@ body[data-deck="emoji-matrix"] .moon {
   font-size: 6rem;
   text-shadow: 0 0 8px #00ff41, 0 0 24px rgba(0,255,65,.85);
 }
-body[data-deck="emoji-matrix"] .card-front {
-  padding: 0;
-  border: 0;
-  color: #00ff41;
-  background: transparent;
-  box-shadow: none;
-  opacity: 0;
-  pointer-events: none;
-  transform: none;
-}
-body[data-deck="emoji-matrix"] .card.is-revealed .card-back {
-  opacity: 0;
-  pointer-events: none;
-}
-body[data-deck="emoji-matrix"] .card.is-revealed .card-front {
-  opacity: 1;
-  pointer-events: auto;
-}
-body[data-deck="emoji-matrix"] .front-content {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+body[data-deck="emoji-matrix"] .card-front { color: #00ff41; background: #000; }
 body[data-deck="emoji-matrix"] .card-image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  background: transparent;
-  filter: none;
-  mix-blend-mode: normal;
-  object-fit: contain;
+  padding: 5px;
+  background: #000;
+  filter: grayscale(1) contrast(3.5) brightness(.72) sepia(1) saturate(8) hue-rotate(72deg) drop-shadow(0 0 4px #00ff41);
+  mix-blend-mode: screen;
 }
 body[data-deck="emoji-matrix"] .card-name,
 body[data-deck="emoji-matrix"] .orientation { color: #00ff41; font-family: "Courier New", Consolas, monospace; text-transform: uppercase; }
-body[data-deck="emoji-matrix"] .card-name { display: none; }
-body[data-deck="emoji-matrix"] .orientation {
-  position: absolute;
-  right: 9px;
-  bottom: 9px;
-  margin: 0;
-  padding: 4px 6px;
-  border: 1px solid rgba(0,255,65,.54);
-  color: #a1ffb7;
-  background: rgba(0,0,0,.74);
-  text-shadow: 0 0 7px rgba(0,255,65,.75);
-}
 
-.deck-status { min-height: 24px; margin-bottom: 14px; color: var(--gold-bright); font: 700 0.88rem/1.4 system-ui, sans-serif; letter-spacing: 0; }
+.deck-status { min-height: 24px; margin-bottom: 14px; color: var(--gold-bright); font: 700 0.88rem/1.4 system-ui, sans-serif; letter-spacing: .04em; }
 .actions, .dialog-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .button, .text-button {
   border: 0;
@@ -441,7 +364,7 @@ body.focus-mode .focus-toggle {
   backdrop-filter: blur(10px);
 }
 body.focus-mode .deck-area { width: 100%; }
-body.focus-mode .card-button { --card-w: min(82vw, 380px); margin-top: 0; }
+body.focus-mode .card-button { --card-w: min(76vw, 300px); margin-top: 0; }
 body.focus-mode .deck-status { margin-bottom: 8px; }
 body.focus-mode .actions { gap: 7px; }
 body.focus-mode .button { min-height: 42px; padding: 0 16px; }
@@ -449,9 +372,9 @@ body.focus-mode .button { min-height: 42px; padding: 0 16px; }
 @media (max-width: 620px) {
   .app-shell { padding-top: 28px; }
   .toolbar { grid-template-columns: 1fr 1fr; }
-  .tool-nav { grid-column: 1 / -1; }
+  .field { grid-column: 1 / -1; }
   body.focus-mode .card-button {
-    --card-w: min(88vw, calc((100dvh - 150px) / 1.6923077));
+    --card-w: min(82vw, calc((100dvh - 150px) / 1.58));
   }
   body.focus-mode .card-prompt { margin-top: 14px; }
 }

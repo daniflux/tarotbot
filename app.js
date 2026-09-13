@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_VERSION = 1;
-  const PUBLIC_DECK = "emoji-matrix";
+  const deckNames = ["emoji", "rider-waite", "emoji-matrix"];
   const elements = {
     deckSelector: document.getElementById("deckSelector"),
     readerMode: document.getElementById("readerMode"),
@@ -34,10 +34,11 @@
   let pending = null;
   let requestedReversalSetting = null;
   let isTransitioning = false;
-  let currentDeck = PUBLIC_DECK;
+  let currentDeck = localStorage.getItem("tarotbot:lastDeck") || "emoji";
   let loadToken = 0;
 
-  localStorage.setItem("tarotbot:lastDeck", PUBLIC_DECK);
+  if (!deckNames.includes(currentDeck)) currentDeck = "emoji";
+  elements.deckSelector.value = currentDeck;
 
   function cardId(card) {
     return card.id || card.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -75,13 +76,9 @@
       pending,
       reversals: elements.reversals.checked
     }));
-    localStorage.setItem("tarotbot:lastDeck", PUBLIC_DECK);
+    localStorage.setItem("tarotbot:lastDeck", currentDeck);
     localStorage.setItem("tarotbot:readerMode", String(elements.readerMode.checked));
     localStorage.setItem("tarotbot:focusMode", String(elements.focusMode.checked));
-  }
-
-  function setDeckControlsDisabled(disabled) {
-    if (elements.deckSelector) elements.deckSelector.disabled = disabled;
   }
 
   function restore() {
@@ -112,7 +109,7 @@
     return image.replace(/^\.\.\//, "");
   }
 
-  function riderImageForCard(name, basePath = "decks/rider-waite/images") {
+  function riderImageForCard(name) {
     const majors = {
       "The Fool": "fool", "The Magician": "magician", "The High Priestess": "priestess",
       "The Empress": "empress", "The Emperor": "emperor", "The Hierophant": "hierophant",
@@ -122,15 +119,15 @@
       "The Devil": "devil", "The Tower": "tower", "The Star": "star",
       "The Moon": "moon", "The Sun": "sun", "Judgement": "judgement", "The World": "world"
     };
-    if (majors[name]) return `${basePath}/major_arcana_${majors[name]}.png`;
+    if (majors[name]) return `decks/rider-waite/images/major_arcana_${majors[name]}.png`;
     const match = name.match(/^(Ace|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Page|Knight|Queen|King) of (Wands|Cups|Swords|Pentacles)$/);
     if (!match) return "";
     const ranks = { Ace: "ace", Two: "2", Three: "3", Four: "4", Five: "5", Six: "6", Seven: "7", Eight: "8", Nine: "9", Ten: "10", Page: "page", Knight: "knight", Queen: "queen", King: "king" };
-    return `${basePath}/minor_arcana_${match[2].toLowerCase()}_${ranks[match[1]]}.png`;
+    return `decks/rider-waite/images/minor_arcana_${match[2].toLowerCase()}_${ranks[match[1]]}.png`;
   }
 
   function displayImageForCard(card) {
-    return currentDeck === "emoji-matrix" ? riderImageForCard(card.name, "decks/emoji-matrix/images") : card.image;
+    return currentDeck === "emoji-matrix" ? riderImageForCard(card.name) : card.image;
   }
 
   function validateDeck(cards) {
@@ -210,16 +207,13 @@
       elements.historyList.appendChild(empty);
       return;
     }
-    drawn
-      .map((entry, index) => ({ entry, drawNumber: index + 1 }))
-      .reverse()
-      .forEach(({ entry, drawNumber }) => {
+    drawn.forEach((entry, index) => {
       const card = resolveCard(entry);
       const item = document.createElement("li");
       item.className = "history-item";
       const number = document.createElement("span");
       number.className = "draw-number";
-      number.textContent = `#${drawNumber}`;
+      number.textContent = `#${index + 1}`;
       const info = document.createElement("span");
       const name = document.createElement("span");
       name.className = "history-name";
@@ -239,9 +233,10 @@
   function render() {
     document.body.dataset.deck = currentDeck;
     document.body.classList.toggle("focus-mode", elements.focusMode.checked);
-    elements.appEyebrow.textContent = "ARCANA // TERMINAL";
-    elements.appTagline.textContent = "78-node entropy protocol :: no duplicate returns";
-    MatrixRain.setActive(true);
+    const matrixMode = currentDeck === "emoji-matrix";
+    elements.appEyebrow.textContent = matrixMode ? "ARCANA // TERMINAL" : "Digital tarot deck";
+    elements.appTagline.textContent = matrixMode ? "78-node entropy protocol :: no duplicate returns" : "Shuffle once. Draw without repeats.";
+    MatrixRain.setActive(matrixMode);
     createEmojiStars();
     const revealedEntry = !pending && drawn.length ? drawn[drawn.length - 1] : null;
     renderCard(pending || revealedEntry, Boolean(revealedEntry));
@@ -291,7 +286,7 @@
     elements.cardButton.disabled = true;
     elements.nextButton.disabled = true;
     elements.shuffleButton.disabled = true;
-    setDeckControlsDisabled(true);
+    elements.deckSelector.disabled = true;
     elements.readerMode.disabled = true;
     elements.reversals.disabled = true;
     elements.focusMode.disabled = true;
@@ -302,7 +297,7 @@
       isTransitioning = false;
       save();
       render();
-      setDeckControlsDisabled(false);
+      elements.deckSelector.disabled = false;
       elements.readerMode.disabled = false;
       elements.reversals.disabled = false;
       elements.focusMode.disabled = false;
@@ -329,10 +324,10 @@
     render();
   }
 
-  async function loadDeck(name = PUBLIC_DECK) {
+  async function loadDeck(name) {
     const token = ++loadToken;
-    currentDeck = name === PUBLIC_DECK ? name : PUBLIC_DECK;
-    setDeckControlsDisabled(true);
+    currentDeck = name;
+    elements.deckSelector.disabled = true;
     elements.nextButton.disabled = true;
     elements.cardButton.disabled = true;
     elements.deckStatus.textContent = "Loading deck…";
@@ -341,7 +336,7 @@
 
     const script = document.createElement("script");
     script.dataset.readerDeck = "true";
-    script.src = `decks/${currentDeck}/deck.js`;
+    script.src = `decks/${name}/deck.js`;
     script.onload = () => {
       if (token !== loadToken) return;
       try {
@@ -353,13 +348,13 @@
         console.error(error);
         elements.deckStatus.textContent = "This deck could not be loaded.";
       } finally {
-        setDeckControlsDisabled(false);
+        elements.deckSelector.disabled = false;
       }
     };
     script.onerror = () => {
       if (token !== loadToken) return;
       elements.deckStatus.textContent = "This deck could not be loaded.";
-      setDeckControlsDisabled(false);
+      elements.deckSelector.disabled = false;
     };
     document.body.appendChild(script);
   }
@@ -435,7 +430,7 @@
 
   elements.cardButton.addEventListener("click", reveal);
   elements.nextButton.addEventListener("click", drawNext);
-  if (elements.deckSelector) elements.deckSelector.addEventListener("change", () => loadDeck(PUBLIC_DECK));
+  elements.deckSelector.addEventListener("change", event => loadDeck(event.target.value));
   elements.readerMode.addEventListener("change", () => { save(); renderMeaning(); });
   elements.focusMode.addEventListener("change", () => { save(); render(); });
   elements.reversals.addEventListener("change", () => {
@@ -469,6 +464,6 @@
   const storedReaderMode = localStorage.getItem("tarotbot:readerMode");
   if (storedReaderMode !== null) elements.readerMode.checked = storedReaderMode === "true";
   elements.focusMode.checked = localStorage.getItem("tarotbot:focusMode") === "true";
-  loadDeck(PUBLIC_DECK);
+  loadDeck(currentDeck);
 })();
 

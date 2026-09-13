@@ -3,26 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#000000">
-  <title>&gt;FLUXGATE_ — Arcana Terminal</title>
+  <meta name="theme-color" content="#171126">
+  <title>TarotBot — Reader Deck</title>
   <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="stylesheet" href="style.css?v=22">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <canvas id="matrixRain" class="matrix-rain" aria-hidden="true"></canvas>
   <div id="emojiStars" class="emoji-stars" aria-hidden="true"></div>
   <main class="app-shell">
     <header class="app-header">
-      <p class="eyebrow" id="appEyebrow">ARCANA // TERMINAL</p>
-      <h1>FLUXGATE</h1>
-      <p class="tagline" id="appTagline">78-node entropy protocol :: no duplicate returns</p>
+      <p class="eyebrow" id="appEyebrow">Digital tarot deck</p>
+      <h1>TarotBot</h1>
+      <p class="tagline" id="appTagline">Shuffle once. Draw without repeats.</p>
     </header>
 
-    <section class="toolbar" aria-label="Fluxgate tools and reader settings">
-      <nav class="tool-nav" aria-label="Fluxgate tools">
-        <button class="tool-tab is-active" type="button" aria-current="page">Arcana // Terminal</button>
-        <span class="tool-tab tool-tab-soon" aria-disabled="true">More tools // standby</span>
-      </nav>
+    <section class="toolbar" aria-label="Deck settings">
+      <label class="field">
+        <span>Deck</span>
+        <select id="deckSelector">
+          <option value="emoji">Emoji</option>
+          <option value="rider-waite">Rider–Waite</option>
+          <option value="emoji-matrix">Arcana Terminal</option>
+        </select>
+      </label>
 
       <label class="switch-row">
         <input id="readerMode" type="checkbox" checked>
@@ -90,8 +94,8 @@
     </form>
   </dialog>
 
-  <script src="reversed-interpretations.js?v=22"></script>
-  <script src="app.js?v=22"></script>
+  <script src="reversed-interpretations.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
 
