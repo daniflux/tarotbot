@@ -290,8 +290,8 @@ body[data-deck="emoji-matrix"] .card-front { color: #00ff41; background: #000; }
 body[data-deck="emoji-matrix"] .card-image {
   padding: 5px;
   background: #000;
-  filter: grayscale(1) contrast(3.5) brightness(.72) sepia(1) saturate(8) hue-rotate(72deg) drop-shadow(0 0 4px #00ff41);
-  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 4px rgba(0,255,65,.75));
+  mix-blend-mode: normal;
 }
 body[data-deck="emoji-matrix"] .card-name,
 body[data-deck="emoji-matrix"] .orientation { color: #00ff41; font-family: "Courier New", Consolas, monospace; text-transform: uppercase; }
