@@ -267,8 +267,8 @@
     } else if (order.length) {
       elements.cardPrompt.textContent = drawn.length ? "Draw next card" : "Draw a card";
       elements.deckStatus.textContent = `${order.length} of ${deck.length} cards remaining`;
-      elements.cardButton.disabled = drawn.length > 0;
-      elements.cardButton.setAttribute("aria-label", drawn.length ? "Current card revealed" : "Draw the first card");
+      elements.cardButton.disabled = false;
+      elements.cardButton.setAttribute("aria-label", drawn.length ? "Draw the next card" : "Draw the first card");
       elements.nextButton.disabled = false;
       elements.nextButton.textContent = drawn.length ? "Draw next card" : "Draw card";
     } else {
@@ -322,7 +322,7 @@
   function reveal() {
     if (isTransitioning || inputIsLocked()) return;
     if (!pending) {
-      if (!drawn.length) drawNext();
+      drawNext();
       return;
     }
     drawn.push(pending);
